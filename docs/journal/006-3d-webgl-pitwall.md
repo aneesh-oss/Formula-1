@@ -62,3 +62,4 @@ This sprint brings:
 - Verified Next.js compiles all WebGL and Canvas dependencies without hydration errors.
 - Verified interactive camera zoom on corner pins.
 - Verified dynamic material color transitions based on live `/api/v1/telemetry/tires` and `/telemetry/{driver}/health`.
+

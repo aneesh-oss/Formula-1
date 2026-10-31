@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, ShieldAlert, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, MapPin, ShieldAlert, Zap } from "lucide-react";
 import CarHealthHUD from "@/components/CarHealthHUD";
 import TelemetryChart from "@/components/TelemetryChart";
 import TrackMap from "@/components/TrackMap";
@@ -36,7 +36,20 @@ const TrackMap3D = dynamic(() => import("@/components/3d/TrackMap3D"), {
   ),
 });
 
+const CIRCUITS = [
+  { slug: "monza", name: "Italian Grand Prix — Monza", country: "Italy", len: "5.793 km" },
+  { slug: "silverstone", name: "British Grand Prix — Silverstone", country: "UK", len: "5.891 km" },
+  { slug: "spa", name: "Belgian Grand Prix — Spa-Francorchamps", country: "Belgium", len: "7.004 km" },
+  { slug: "suzuka", name: "Japanese Grand Prix — Suzuka", country: "Japan", len: "5.807 km" },
+  { slug: "monaco", name: "Monaco Grand Prix — Monte Carlo", country: "Monaco", len: "3.337 km" },
+  { slug: "spielberg", name: "Austrian Grand Prix — Red Bull Ring", country: "Austria", len: "4.318 km" },
+  { slug: "zandvoort", name: "Dutch Grand Prix — Zandvoort", country: "Netherlands", len: "4.259 km" },
+  { slug: "sao_paulo", name: "São Paulo Grand Prix — Interlagos", country: "Brazil", len: "4.309 km" },
+];
+
 export default function TelemetryDashboard() {
+  const [selectedCircuit, setSelectedCircuit] = useState("monza");
+  const [selectedYear, setSelectedYear] = useState(2024);
   const [driverA, setDriverA] = useState("VER");
   const [driverB, setDriverB] = useState("NOR");
   const [viewMode, setViewMode] = useState<"3D" | "2D">("3D");
@@ -47,15 +60,17 @@ export default function TelemetryDashboard() {
   const [activeScrubIdx, setActiveScrubIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const activeCircuitMeta = CIRCUITS.find((c) => c.slug === selectedCircuit) || CIRCUITS[0];
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
         const [tel, tires, health, sectors] = await Promise.all([
-          fetchTelemetryCompare(driverA, driverB, 2024, "monza", "R"),
-          fetchTireMetrics(driverA, 2024, "monza", "R"),
+          fetchTelemetryCompare(driverA, driverB, selectedYear, selectedCircuit, "R"),
+          fetchTireMetrics(driverA, selectedYear, selectedCircuit, "R"),
           fetchVehicleHealth(driverA, 14, "MEDIUM"),
-          fetchSessionSectors("2024_monza_R", driverA),
+          fetchSessionSectors(`${selectedYear}_${selectedCircuit}_R`, driverA),
         ]);
         setTelemetryData(tel);
         setTireData(tires);
@@ -68,7 +83,7 @@ export default function TelemetryDashboard() {
       }
     }
     loadData();
-  }, [driverA, driverB]);
+  }, [driverA, driverB, selectedCircuit, selectedYear]);
 
   return (
     <div className="flex flex-col space-y-6">
@@ -77,18 +92,34 @@ export default function TelemetryDashboard() {
         <div>
           <div className="flex items-center space-x-2 text-xs font-mono text-pitwall-cyan font-semibold">
             <span className="h-2 w-2 rounded-full bg-pitwall-cyan animate-pulse" />
-            <span>2024 ITALIAN GRAND PRIX — MONZA (RACE)</span>
+            <span>{selectedYear} {activeCircuitMeta.name.toUpperCase()}</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white mt-1">
             Telemetry Delta &amp; 3D PitWall HUD
           </h1>
           <p className="text-xs text-gray-400">
-            DuckDB zero-copy spatial alignment across 1,500 distance samples with interactive 3D WebGL scenes.
+            Universal FastF1 3D spline circuit geometry with interactive turn telemetry and real-time tire degradation.
           </p>
         </div>
 
-        {/* View Mode Toggle & Driver Selectors */}
+        {/* Header Controls: Circuit Switcher, 3D Mode & Drivers */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Circuit Dropdown */}
+          <div className="flex items-center space-x-1.5 bg-pitwall-panel border border-pitwall-border rounded-lg px-2.5 py-1.5 shadow-sm">
+            <MapPin className="h-3.5 w-3.5 text-pitwall-cyan" />
+            <select
+              value={selectedCircuit}
+              onChange={(e) => setSelectedCircuit(e.target.value)}
+              className="bg-transparent text-white text-xs font-bold font-mono outline-none cursor-pointer"
+            >
+              {CIRCUITS.map((c) => (
+                <option key={c.slug} value={c.slug} className="bg-pitwall-card text-white">
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* 3D vs 2D Mode Switcher */}
           <div className="flex items-center bg-pitwall-panel border border-pitwall-border rounded-lg p-1 text-xs font-mono font-bold">
             <button
@@ -128,6 +159,8 @@ export default function TelemetryDashboard() {
                 <option value="NOR">NOR (Norris)</option>
                 <option value="LEC">LEC (Leclerc)</option>
                 <option value="HAM">HAM (Hamilton)</option>
+                <option value="PIA">PIA (Piastri)</option>
+                <option value="SAI">SAI (Sainz)</option>
               </select>
             </div>
             <span className="text-gray-500 font-bold text-xs">VS</span>
@@ -142,6 +175,8 @@ export default function TelemetryDashboard() {
                 <option value="VER">VER (Verstappen)</option>
                 <option value="LEC">LEC (Leclerc)</option>
                 <option value="HAM">HAM (Hamilton)</option>
+                <option value="PIA">PIA (Piastri)</option>
+                <option value="SAI">SAI (Sainz)</option>
               </select>
             </div>
           </div>
@@ -159,7 +194,7 @@ export default function TelemetryDashboard() {
             +5.2 <span className="text-xs text-gray-400 font-normal">km/h</span>
           </div>
           <p className="mt-1 text-[11px] text-emerald-400 font-medium">
-            {driverA} advantage on Rettifilo straight
+            {driverA} speed advantage on main straight
           </p>
         </div>
 
@@ -172,7 +207,7 @@ export default function TelemetryDashboard() {
             +3.4 <span className="text-xs text-gray-400 font-normal">km/h</span>
           </div>
           <p className="mt-1 text-[11px] text-pitwall-cyan font-medium">
-            {driverB} higher minimum speed at Ascari
+            {driverB} higher minimum mid-corner speed
           </p>
         </div>
 
@@ -209,7 +244,7 @@ export default function TelemetryDashboard() {
         <div className="lg:col-span-2 flex flex-col space-y-6">
           {loading || !telemetryData ? (
             <div className="flex h-96 items-center justify-center rounded-xl border border-pitwall-border bg-pitwall-panel font-mono text-gray-400">
-              Loading DuckDB distance telemetry...
+              Loading DuckDB distance telemetry for {activeCircuitMeta.name}...
             </div>
           ) : (
             <TelemetryChart
@@ -299,6 +334,8 @@ export default function TelemetryDashboard() {
           {viewMode === "3D" ? (
             <>
               <TrackMap3D
+                circuit={selectedCircuit}
+                year={selectedYear}
                 telemetry={telemetryData?.data || []}
                 activeIndex={activeScrubIdx}
                 driverA={driverA}

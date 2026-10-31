@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from app.services.circuit_service import CircuitService
 from app.telemetry import get_tracer
 
 logger = logging.getLogger("pitwall.services.timing")
@@ -17,64 +18,54 @@ class TimingService:
     def __init__(self, lakehouse_dir: Optional[str] = None):
         self.lakehouse_dir = lakehouse_dir or os.getenv("LAKEHOUSE_DIR", "data/lakehouse")
         self.tracer = get_tracer("pitwall.timing")
+        self.circuit_service = CircuitService()
 
     def get_circuit_geometry(self, circuit_name: str = "monza") -> Dict[str, Any]:
         """
-        Returns normalized (X, Y) track geometry with sector boundaries and turn annotations.
-        Monza lap length: 5,793 meters.
-        - Sector 1: 0m to 1,680m (Variante del Rettifilo, Curva Grande)
-        - Sector 2: 1,680m to 4,220m (Variante della Roggia, Lesmo 1, Lesmo 2, Serraglio)
-        - Sector 3: 4,220m to 5,793m (Variante Ascari, Curva Parabolica / Alboreto)
+        Returns normalized (X, Y) track geometry with sector boundaries and turn annotations
+        for any requested circuit using CircuitService.
         """
         with self.tracer.start_as_current_span("timing.track_map") as span:
             span.set_attribute("f1.circuit", circuit_name.lower())
 
-            lap_length_m = 5793.0
-            num_points = 300
-            distances = np.linspace(0, lap_length_m, num_points)
-            angles = (distances / lap_length_m) * 2 * np.pi
-
-            # Generate canonical Monza track contour
-            xs = 1000.0 * np.cos(angles) + 200.0 * np.sin(2 * angles)
-            ys = 600.0 * np.sin(angles) + 150.0 * np.sin(3 * angles)
+            geom_data = self.circuit_service.get_circuit_geometry(year=2024, circuit_name=circuit_name)
+            lap_length_m = geom_data["track_length_meters"]
+            s1_end = geom_data["sectors"]["s1_end_dist"]
+            s2_end = geom_data["sectors"]["s2_end_dist"]
 
             track_points = []
-            for d, x, y in zip(distances, xs, ys):
-                if d < 1680.0:
-                    sector = 1
-                elif d < 4220.0:
-                    sector = 2
-                else:
-                    sector = 3
-
+            num_pts = len(geom_data["spline_points"])
+            for i, pt in enumerate(geom_data["spline_points"]):
+                dist = (i / max(1, num_pts - 1)) * lap_length_m
+                sector = 1 if dist <= s1_end else (2 if dist <= s2_end else 3)
                 track_points.append(
                     {
-                        "distance": round(float(d), 1),
-                        "x": round(float(x), 1),
-                        "y": round(float(y), 1),
+                        "distance": round(float(dist), 1),
+                        "x": round(float(pt[0] * 50.0), 1),
+                        "y": round(float(pt[2] * 50.0), 1),
                         "sector": sector,
                     }
                 )
 
-            turns = [
-                {"number": "T1-T2", "name": "Variante del Rettifilo", "distance": 140.0, "sector": 1, "type": "Chicane"},
-                {"number": "T3", "name": "Curva Grande", "distance": 1150.0, "sector": 1, "type": "High Speed Right"},
-                {"number": "T4-T5", "name": "Variante della Roggia", "distance": 1920.0, "sector": 2, "type": "Chicane"},
-                {"number": "T6", "name": "Curva di Lesmo 1", "distance": 2580.0, "sector": 2, "type": "Medium Right"},
-                {"number": "T7", "name": "Curva di Lesmo 2", "distance": 2980.0, "sector": 2, "type": "Medium Right"},
-                {"number": "T8-T10", "name": "Variante Ascari", "distance": 4350.0, "sector": 3, "type": "Complex Left-Right-Left"},
-                {"number": "T11", "name": "Curva Parabolica (Alboreto)", "distance": 5210.0, "sector": 3, "type": "Long Radius Right"},
-            ]
+            turns = []
+            for c in geom_data["corners"]:
+                turns.append({
+                    "number": f"T{c['number']}{c['letter']}",
+                    "name": c.get("name", f"Turn {c['number']}"),
+                    "distance": c["distance"],
+                    "sector": c["sector"],
+                    "type": f"{c.get('recommended_gear', 3)}th Gear Apex",
+                })
 
             return {
                 "circuit": circuit_name.lower(),
-                "name": "Autodromo Nazionale Monza",
+                "name": geom_data["circuit_name"],
                 "lap_length_meters": lap_length_m,
-                "total_turns": 11,
+                "total_turns": len(turns),
                 "sector_boundaries": {
-                    "sector_1": {"start": 0.0, "end": 1680.0},
-                    "sector_2": {"start": 1680.0, "end": 4220.0},
-                    "sector_3": {"start": 4220.0, "end": 5793.0},
+                    "sector_1": {"start": 0.0, "end": s1_end},
+                    "sector_2": {"start": s1_end, "end": s2_end},
+                    "sector_3": {"start": s2_end, "end": lap_length_m},
                 },
                 "turns": turns,
                 "geometry": track_points,

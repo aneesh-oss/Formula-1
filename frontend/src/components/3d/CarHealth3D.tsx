@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html, OrbitControls } from "@react-three/drei";
+import { Html, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { TireResponse } from "@/lib/api";
 
@@ -12,58 +12,95 @@ interface CarHealth3DProps {
   autoRotate?: boolean;
 }
 
-// 3D Procedural F1 Car Model with dynamic tire color binding
-function F1ChassisMesh({
-  wearFL = 15,
-  wearFR = 18,
-  wearRL = 22,
-  wearRR = 24,
-  driver = "VER",
-}: {
-  wearFL?: number;
-  wearFR?: number;
-  wearRL?: number;
-  wearRR?: number;
-  driver?: string;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const flMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
-  const frMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
-  const rlMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
-  const rrMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+interface WheelStatus {
+  wear: number;
+  label: string;
+  statusText: string;
+  colorHex: string;
+  emissiveHex: string;
+  intensity: number;
+  isCritical: boolean;
+}
 
-  const getTireColor = (wear: number): THREE.Color => {
-    if (wear > 75) return new THREE.Color("#ef4444"); // Red: Grip Lost / Cliff
-    if (wear >= 50) return new THREE.Color("#f59e0b"); // Amber: Degradation Active
-    return new THREE.Color("#10b981"); // Green: Nominal Grip (<50%)
+function getWheelStatus(wear: number, cornerKey: string): WheelStatus {
+  if (wear > 75) {
+    return {
+      wear,
+      label: `${cornerKey} [CRITICAL]`,
+      statusText: "CRITICAL",
+      colorHex: "#ff1744",
+      emissiveHex: "#ff1744",
+      intensity: 2.5,
+      isCritical: true,
+    };
+  }
+  if (wear >= 50) {
+    return {
+      wear,
+      label: `${cornerKey} [${wear.toFixed(0)}%]`,
+      statusText: `${wear.toFixed(0)}%`,
+      colorHex: "#ff9100",
+      emissiveHex: "#ff9100",
+      intensity: 1.5,
+      isCritical: false,
+    };
+  }
+  return {
+    wear,
+    label: `${cornerKey} [OPTIMAL]`,
+    statusText: "OPTIMAL",
+    colorHex: "#00e5ff",
+    emissiveHex: "#00e5ff",
+    intensity: 0.5,
+    isCritical: false,
   };
+}
 
-  const colorFL = useMemo(() => getTireColor(wearFL), [wearFL]);
-  const colorFR = useMemo(() => getTireColor(wearFR), [wearFR]);
-  const colorRL = useMemo(() => getTireColor(wearRL), [wearRL]);
-  const colorRR = useMemo(() => getTireColor(wearRR), [wearRR]);
+// Procedural high-fidelity F1 chassis rendered if GLTF is loading or in standalone mode
+function ProceduralF1Chassis({
+  flStatus,
+  frStatus,
+  rlStatus,
+  rrStatus,
+}: {
+  flStatus: WheelStatus;
+  frStatus: WheelStatus;
+  rlStatus: WheelStatus;
+  rrStatus: WheelStatus;
+}) {
+  const flMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const frMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const rlMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const rrMatRef = useRef<THREE.MeshStandardMaterial>(null);
 
-  // Subtle pulsing glow for tires crossing the 75% grip loss cliff
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
-    const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+    const pulseFast = 0.5 + 0.5 * Math.sin(t * 7);
 
-    if (flMaterialRef.current && wearFL > 75) {
-      flMaterialRef.current.emissiveIntensity = pulse;
+    if (flMatRef.current) {
+      flMatRef.current.emissiveIntensity = flStatus.isCritical
+        ? flStatus.intensity * pulseFast
+        : flStatus.intensity;
     }
-    if (frMaterialRef.current && wearFR > 75) {
-      frMaterialRef.current.emissiveIntensity = pulse;
+    if (frMatRef.current) {
+      frMatRef.current.emissiveIntensity = frStatus.isCritical
+        ? frStatus.intensity * pulseFast
+        : frStatus.intensity;
     }
-    if (rlMaterialRef.current && wearRL > 75) {
-      rlMaterialRef.current.emissiveIntensity = pulse;
+    if (rlMatRef.current) {
+      rlMatRef.current.emissiveIntensity = rlStatus.isCritical
+        ? rlStatus.intensity * pulseFast
+        : rlStatus.intensity;
     }
-    if (rrMaterialRef.current && wearRR > 75) {
-      rrMaterialRef.current.emissiveIntensity = pulse;
+    if (rrMatRef.current) {
+      rrMatRef.current.emissiveIntensity = rrStatus.isCritical
+        ? rrStatus.intensity * pulseFast
+        : rrStatus.intensity;
     }
   });
 
   return (
-    <group ref={groupRef} position={[0, -0.2, 0]} scale={[1, 1, 1]}>
+    <group position={[0, -0.2, 0]}>
       {/* 1. Main Monocoque Chassis */}
       <mesh position={[0, 0.45, 0]}>
         <boxGeometry args={[1.0, 0.4, 3.4]} />
@@ -78,17 +115,14 @@ function F1ChassisMesh({
 
       {/* 3. Front Wing & Endplates */}
       <group position={[0, 0.2, 2.6]}>
-        {/* Main wing flap */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[2.5, 0.05, 0.6]} />
           <meshStandardMaterial color="#1a1e2b" roughness={0.4} metalness={0.6} />
         </mesh>
-        {/* Left Endplate */}
         <mesh position={[-1.25, 0.15, 0]}>
           <boxGeometry args={[0.05, 0.35, 0.6]} />
           <meshStandardMaterial color="#e10600" />
         </mesh>
-        {/* Right Endplate */}
         <mesh position={[1.25, 0.15, 0]}>
           <boxGeometry args={[0.05, 0.35, 0.6]} />
           <meshStandardMaterial color="#e10600" />
@@ -114,50 +148,53 @@ function F1ChassisMesh({
 
       {/* 6. Rear Wing Assembly */}
       <group position={[0, 0.9, -1.8]}>
-        {/* Top Wing Plate */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[2.0, 0.06, 0.5]} />
           <meshStandardMaterial color="#1a1e2b" metalness={0.7} />
         </mesh>
-        {/* DRS Actuator Flap */}
         <mesh position={[0, 0.08, -0.1]}>
           <boxGeometry args={[1.8, 0.03, 0.3]} />
           <meshStandardMaterial color="#00f0ff" metalness={0.9} />
         </mesh>
-        {/* Left Endplate */}
         <mesh position={[-1.0, -0.3, 0]}>
           <boxGeometry args={[0.05, 0.65, 0.6]} />
           <meshStandardMaterial color="#e10600" />
         </mesh>
-        {/* Right Endplate */}
         <mesh position={[1.0, -0.3, 0]}>
           <boxGeometry args={[0.05, 0.65, 0.6]} />
           <meshStandardMaterial color="#e10600" />
         </mesh>
       </group>
 
-      {/* 7. Four Wheels with Dynamic Color Binding */}
+      {/* 7. Four Wheels with Dynamic Color & HTML Floating Badges */}
       {/* FRONT-LEFT WHEEL */}
       <group position={[-1.25, 0.36, 1.5]}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.36, 0.36, 0.35, 24]} />
           <meshStandardMaterial
-            ref={flMaterialRef}
-            color={colorFL}
-            emissive={colorFL}
-            emissiveIntensity={wearFL > 75 ? 0.8 : 0.15}
+            ref={flMatRef}
+            color={flStatus.colorHex}
+            emissive={flStatus.emissiveHex}
+            emissiveIntensity={flStatus.intensity}
             roughness={0.3}
             metalness={0.4}
           />
         </mesh>
-        {/* Inner Carbon Rim */}
         <mesh rotation={[0, 0, Math.PI / 2]} position={[-0.05, 0, 0]}>
           <cylinderGeometry args={[0.2, 0.2, 0.36, 16]} />
           <meshStandardMaterial color="#090a0f" metalness={0.9} />
         </mesh>
-        <Html position={[0, 0.55, 0]} center distanceFactor={8}>
-          <div className="pointer-events-none rounded bg-black/85 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white shadow border border-white/20 whitespace-nowrap">
-            FL: {wearFL.toFixed(0)}%
+        <Html position={[0, 0.65, 0]} center distanceFactor={8}>
+          <div
+            className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+              flStatus.isCritical
+                ? "bg-red-600/90 border-red-400 animate-pulse"
+                : flStatus.wear >= 50
+                ? "bg-amber-600/90 border-amber-400"
+                : "bg-cyan-600/90 border-cyan-400"
+            }`}
+          >
+            {flStatus.label}
           </div>
         </Html>
       </group>
@@ -167,10 +204,10 @@ function F1ChassisMesh({
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.36, 0.36, 0.35, 24]} />
           <meshStandardMaterial
-            ref={frMaterialRef}
-            color={colorFR}
-            emissive={colorFR}
-            emissiveIntensity={wearFR > 75 ? 0.8 : 0.15}
+            ref={frMatRef}
+            color={frStatus.colorHex}
+            emissive={frStatus.emissiveHex}
+            emissiveIntensity={frStatus.intensity}
             roughness={0.3}
             metalness={0.4}
           />
@@ -179,9 +216,17 @@ function F1ChassisMesh({
           <cylinderGeometry args={[0.2, 0.2, 0.36, 16]} />
           <meshStandardMaterial color="#090a0f" metalness={0.9} />
         </mesh>
-        <Html position={[0, 0.55, 0]} center distanceFactor={8}>
-          <div className="pointer-events-none rounded bg-black/85 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white shadow border border-white/20 whitespace-nowrap">
-            FR: {wearFR.toFixed(0)}%
+        <Html position={[0, 0.65, 0]} center distanceFactor={8}>
+          <div
+            className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+              frStatus.isCritical
+                ? "bg-red-600/90 border-red-400 animate-pulse"
+                : frStatus.wear >= 50
+                ? "bg-amber-600/90 border-amber-400"
+                : "bg-cyan-600/90 border-cyan-400"
+            }`}
+          >
+            {frStatus.label}
           </div>
         </Html>
       </group>
@@ -191,21 +236,29 @@ function F1ChassisMesh({
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.38, 0.38, 0.44, 24]} />
           <meshStandardMaterial
-            ref={rlMaterialRef}
-            color={colorRL}
-            emissive={colorRL}
-            emissiveIntensity={wearRL > 75 ? 0.8 : 0.15}
+            ref={rlMatRef}
+            color={rlStatus.colorHex}
+            emissive={rlStatus.emissiveHex}
+            emissiveIntensity={rlStatus.intensity}
             roughness={0.3}
             metalness={0.4}
           />
         </mesh>
         <mesh rotation={[0, 0, Math.PI / 2]} position={[-0.05, 0, 0]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.45, 16]} />
+          <cylinderGeometry args={[0.22, 0.22, 0.46, 16]} />
           <meshStandardMaterial color="#090a0f" metalness={0.9} />
         </mesh>
-        <Html position={[0, 0.55, 0]} center distanceFactor={8}>
-          <div className="pointer-events-none rounded bg-black/85 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white shadow border border-white/20 whitespace-nowrap">
-            RL: {wearRL.toFixed(0)}%
+        <Html position={[0, 0.68, 0]} center distanceFactor={8}>
+          <div
+            className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+              rlStatus.isCritical
+                ? "bg-red-600/90 border-red-400 animate-pulse"
+                : rlStatus.wear >= 50
+                ? "bg-amber-600/90 border-amber-400"
+                : "bg-cyan-600/90 border-cyan-400"
+            }`}
+          >
+            {rlStatus.label}
           </div>
         </Html>
       </group>
@@ -215,30 +268,151 @@ function F1ChassisMesh({
         <mesh rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.38, 0.38, 0.44, 24]} />
           <meshStandardMaterial
-            ref={rrMaterialRef}
-            color={colorRR}
-            emissive={colorRR}
-            emissiveIntensity={wearRR > 75 ? 0.8 : 0.15}
+            ref={rrMatRef}
+            color={rrStatus.colorHex}
+            emissive={rrStatus.emissiveHex}
+            emissiveIntensity={rrStatus.intensity}
             roughness={0.3}
             metalness={0.4}
           />
         </mesh>
         <mesh rotation={[0, 0, Math.PI / 2]} position={[0.05, 0, 0]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.45, 16]} />
+          <cylinderGeometry args={[0.22, 0.22, 0.46, 16]} />
           <meshStandardMaterial color="#090a0f" metalness={0.9} />
         </mesh>
-        <Html position={[0, 0.55, 0]} center distanceFactor={8}>
-          <div className="pointer-events-none rounded bg-black/85 px-1.5 py-0.5 text-[9px] font-mono font-bold text-white shadow border border-white/20 whitespace-nowrap">
-            RR: {wearRR.toFixed(0)}%
+        <Html position={[0, 0.68, 0]} center distanceFactor={8}>
+          <div
+            className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+              rrStatus.isCritical
+                ? "bg-red-600/90 border-red-400 animate-pulse"
+                : rrStatus.wear >= 50
+                ? "bg-amber-600/90 border-amber-400"
+                : "bg-cyan-600/90 border-cyan-400"
+            }`}
+          >
+            {rrStatus.label}
           </div>
         </Html>
       </group>
+    </group>
+  );
+}
 
-      {/* Underfloor Ground Shadow */}
-      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[3.2, 5.5]} />
-        <meshBasicMaterial color="#040608" transparent opacity={0.6} />
-      </mesh>
+// GLTF model wrapper that binds to /models/f1_car.glb wheel nodes
+function GLTFCarModel({
+  flStatus,
+  frStatus,
+  rlStatus,
+  rrStatus,
+}: {
+  flStatus: WheelStatus;
+  frStatus: WheelStatus;
+  rlStatus: WheelStatus;
+  rrStatus: WheelStatus;
+}) {
+  const { scene } = useGLTF("/models/f1_car.glb");
+  const clonedScene = useMemo(() => scene.clone(), [scene]);
+  const wheelMaterialsRef = useRef<Map<string, THREE.MeshStandardMaterial>>(new Map());
+
+  useEffect(() => {
+    wheelMaterialsRef.current.clear();
+    clonedScene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        const name = (mesh.name || "").toLowerCase();
+        if (
+          name.includes("wheel") ||
+          name.includes("tire") ||
+          name.includes("fl") ||
+          name.includes("fr") ||
+          name.includes("rl") ||
+          name.includes("rr")
+        ) {
+          if (Array.isArray(mesh.material)) {
+            mesh.material = mesh.material.map((m) => m.clone());
+          } else if (mesh.material) {
+            mesh.material = mesh.material.clone();
+            wheelMaterialsRef.current.set(name, mesh.material as THREE.MeshStandardMaterial);
+          }
+        }
+      }
+    });
+  }, [clonedScene]);
+
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    const pulseFast = 0.5 + 0.5 * Math.sin(t * 7);
+
+    wheelMaterialsRef.current.forEach((mat, name) => {
+      let status = flStatus;
+      if (name.includes("fr")) status = frStatus;
+      else if (name.includes("rl")) status = rlStatus;
+      else if (name.includes("rr")) status = rrStatus;
+
+      mat.emissive.set(status.emissiveHex);
+      mat.emissiveIntensity = status.isCritical
+        ? status.intensity * pulseFast
+        : status.intensity;
+    });
+  });
+
+  return (
+    <group position={[0, -0.2, 0]}>
+      <primitive object={clonedScene} scale={[0.8, 0.8, 0.8]} />
+
+      {/* Floating 3D status labels positioned above the 4 wheel corners */}
+      <Html position={[-1.25, 0.85, 1.4]} center distanceFactor={8}>
+        <div
+          className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+            flStatus.isCritical
+              ? "bg-red-600/90 border-red-400 animate-pulse"
+              : flStatus.wear >= 50
+              ? "bg-amber-600/90 border-amber-400"
+              : "bg-cyan-600/90 border-cyan-400"
+          }`}
+        >
+          {flStatus.label}
+        </div>
+      </Html>
+      <Html position={[1.25, 0.85, 1.4]} center distanceFactor={8}>
+        <div
+          className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+            frStatus.isCritical
+              ? "bg-red-600/90 border-red-400 animate-pulse"
+              : frStatus.wear >= 50
+              ? "bg-amber-600/90 border-amber-400"
+              : "bg-cyan-600/90 border-cyan-400"
+          }`}
+        >
+          {frStatus.label}
+        </div>
+      </Html>
+      <Html position={[-1.3, 0.9, -1.3]} center distanceFactor={8}>
+        <div
+          className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+            rlStatus.isCritical
+              ? "bg-red-600/90 border-red-400 animate-pulse"
+              : rlStatus.wear >= 50
+              ? "bg-amber-600/90 border-amber-400"
+              : "bg-cyan-600/90 border-cyan-400"
+          }`}
+        >
+          {rlStatus.label}
+        </div>
+      </Html>
+      <Html position={[1.3, 0.9, -1.3]} center distanceFactor={8}>
+        <div
+          className={`pointer-events-none rounded px-2 py-0.5 text-[9px] font-mono font-bold text-white shadow-xl border whitespace-nowrap ${
+            rrStatus.isCritical
+              ? "bg-red-600/90 border-red-400 animate-pulse"
+              : rrStatus.wear >= 50
+              ? "bg-amber-600/90 border-amber-400"
+              : "bg-cyan-600/90 border-cyan-400"
+          }`}
+        >
+          {rrStatus.label}
+        </div>
+      </Html>
     </group>
   );
 }
@@ -246,86 +420,134 @@ function F1ChassisMesh({
 export default function CarHealth3D({
   tireData,
   driver = "VER",
-  autoRotate = true,
+  autoRotate = false,
 }: CarHealth3DProps) {
-  // Extract latest lap tire metrics or fallback to defaults
-  const latest =
-    tireData?.history && tireData.history.length > 0
-      ? tireData.history[tireData.history.length - 1]
-      : null;
+  const [modelMode, setModelMode] = useState<"procedural" | "glb">("procedural");
 
-  const wearFL = latest ? latest.max_wear_pct * 1.1 : 18;
-  const wearFR = latest ? latest.max_wear_pct * 0.9 : 14;
-  const wearRL = latest ? latest.max_wear_pct * 1.05 : 16;
-  const wearRR = latest ? latest.max_wear_pct * 0.85 : 12;
+  // Extract tire wear metrics from history or defaults
+  const latestLap = tireData?.history?.slice(-1)[0];
+  const wearFL = latestLap ? latestLap.avg_temp_fl / 3.0 : 18;
+  const wearFR = latestLap ? latestLap.avg_temp_fr / 2.6 : 58;
+  const wearRL = latestLap ? latestLap.avg_temp_rl / 3.2 : 24;
+  const wearRR = latestLap ? latestLap.avg_temp_rr / 2.8 : 82; // Trigger red critical glow on RR
+
+  const flStatus = useMemo(() => getWheelStatus(wearFL, "FL"), [wearFL]);
+  const frStatus = useMemo(() => getWheelStatus(wearFR, "FR"), [wearFR]);
+  const rlStatus = useMemo(() => getWheelStatus(wearRL, "RL"), [wearRL]);
+  const rrStatus = useMemo(() => getWheelStatus(wearRR, "RR"), [wearRR]);
 
   return (
     <div className="relative flex flex-col h-96 w-full rounded-xl border border-pitwall-border bg-pitwall-panel p-3 shadow-2xl overflow-hidden">
-      {/* Top HUD Overlay */}
+      {/* 3D Header Overlay */}
       <div className="absolute top-3 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="h-2 w-2 rounded-full bg-pitwall-cyan animate-pulse" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-mono uppercase tracking-widest text-pitwall-cyan font-bold">
-              WebGL 3D Vehicle Dynamics HUD
+              3D Vehicle Dynamics &amp; Thermal Wear HUD
             </span>
           </div>
           <h3 className="text-sm font-black text-white font-mono mt-0.5">
-            {driver} Formula 1 Telemetry Binding
+            {driver} — Four-Wheel Degradation State
           </h3>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center space-x-2 text-[10px] font-mono bg-black/70 backdrop-blur border border-white/10 rounded-lg px-2.5 py-1">
-          <span className="flex items-center space-x-1">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-gray-300">&lt;50%</span>
-          </span>
-          <span className="flex items-center space-x-1">
-            <span className="h-2 w-2 rounded-full bg-amber-500" />
-            <span className="text-gray-300">50-75%</span>
-          </span>
-          <span className="flex items-center space-x-1">
-            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-            <span className="text-rose-400">&gt;75% Cliff</span>
-          </span>
+        {/* Model Toggle (Procedural vs GLB) */}
+        <div className="pointer-events-auto flex items-center space-x-1.5 bg-black/75 backdrop-blur border border-white/10 rounded-lg p-1 text-[10px] font-mono">
+          <button
+            onClick={() => setModelMode("procedural")}
+            className={`px-2 py-0.5 rounded font-bold transition-all ${
+              modelMode === "procedural"
+                ? "bg-pitwall-cyan text-black"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            Chassis Mesh
+          </button>
+          <button
+            onClick={() => setModelMode("glb")}
+            className={`px-2 py-0.5 rounded font-bold transition-all ${
+              modelMode === "glb"
+                ? "bg-pitwall-cyan text-black"
+                : "text-gray-400 hover:text-white"
+            }`}
+          >
+            GLB Asset
+          </button>
         </div>
       </div>
 
-      {/* Interactive 3D Canvas */}
+      {/* 3D WebGL Canvas */}
       <div className="h-full w-full cursor-grab active:cursor-grabbing">
         <Canvas
-          camera={{ position: [3.5, 2.2, 4.0], fov: 42 }}
+          camera={{ position: [0, 4.5, 6.5], fov: 42 }}
           gl={{ antialias: true, alpha: true }}
         >
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[10, 15, 10]} intensity={1.4} castShadow />
-          <pointLight position={[-8, 6, -6]} intensity={0.8} color="#00f0ff" />
-          <pointLight position={[6, 4, 8]} intensity={0.6} color="#e10600" />
+          <ambientLight intensity={0.65} />
+          <directionalLight position={[10, 15, 10]} intensity={1.6} />
+          <pointLight position={[-10, 8, -5]} intensity={0.8} color="#00f0ff" />
+          <pointLight position={[10, 8, 5]} intensity={0.8} color="#e10600" />
 
-          <F1ChassisMesh
-            wearFL={wearFL}
-            wearFR={wearFR}
-            wearRL={wearRL}
-            wearRR={wearRR}
-            driver={driver}
-          />
+          <Suspense
+            fallback={
+              <ProceduralF1Chassis
+                flStatus={flStatus}
+                frStatus={frStatus}
+                rlStatus={rlStatus}
+                rrStatus={rrStatus}
+              />
+            }
+          >
+            {modelMode === "glb" ? (
+              <GLTFCarModel
+                flStatus={flStatus}
+                frStatus={frStatus}
+                rlStatus={rlStatus}
+                rrStatus={rrStatus}
+              />
+            ) : (
+              <ProceduralF1Chassis
+                flStatus={flStatus}
+                frStatus={frStatus}
+                rlStatus={rlStatus}
+                rrStatus={rrStatus}
+              />
+            )}
+          </Suspense>
 
+          <gridHelper args={[16, 16, "#1f293d", "#0e111a"]} position={[0, -0.22, 0]} />
+
+          {/* Orbit controls with pitch constraints */}
           <OrbitControls
             enableDamping
-            dampingFactor={0.05}
+            dampingFactor={0.06}
             autoRotate={autoRotate}
             autoRotateSpeed={0.8}
-            maxPolarAngle={Math.PI / 2.05} // Do not go below floor
-            minDistance={2.5}
-            maxDistance={7.0}
+            minPolarAngle={Math.PI / 6}
+            maxPolarAngle={Math.PI / 2.1}
+            minDistance={3.5}
+            maxDistance={12.0}
           />
         </Canvas>
       </div>
 
-      {/* Bottom Hint */}
-      <div className="absolute bottom-2 left-4 text-[10px] font-mono text-gray-500 pointer-events-none">
-        Click &amp; Drag to rotate • Scroll to zoom
+      {/* Thermal Degradation Status Footer Bar */}
+      <div className="absolute bottom-2 left-4 right-4 z-10 flex items-center justify-between pointer-events-none text-[10px] font-mono">
+        <div className="flex items-center space-x-3 bg-black/75 backdrop-blur border border-white/10 px-2 py-1 rounded">
+          <span className="flex items-center space-x-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00e5ff]" />
+            <span className="text-gray-300">&lt;50% Optimal</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ff9100]" />
+            <span className="text-gray-300">50-75% Degraded</span>
+          </span>
+          <span className="flex items-center space-x-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#ff1744] animate-pulse" />
+            <span className="text-rose-400 font-bold">&gt;75% Grip Lost</span>
+          </span>
+        </div>
+        <div className="text-gray-400">Drag to orbit • Scroll to zoom</div>
       </div>
     </div>
   );

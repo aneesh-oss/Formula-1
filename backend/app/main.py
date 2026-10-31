@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.api.championship_router import router as championship_router
+from app.api.circuits_router import router as circuits_router
 from app.api.dashboard_router import router as dashboard_router
 from app.api.telemetry_router import router as telemetry_router
 from app.telemetry import get_tracer, record_tire_metrics, setup_telemetry
@@ -59,6 +60,7 @@ app.add_middleware(
 app.include_router(telemetry_router)
 app.include_router(championship_router)
 app.include_router(dashboard_router)
+app.include_router(circuits_router)
 
 
 class HealthResponse(BaseModel):

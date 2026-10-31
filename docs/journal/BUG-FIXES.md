@@ -81,3 +81,17 @@ This document tracks every bug, unexpected behavior, root-cause analysis (RCA), 
 * **Resolution**:
   This is standard and expected behavior for non-commercial FastF1 usage. Documented in the architecture journal that no paid subscription (F1 TV or FanCode) is required, and all data is cached locally into `fastf1_http_cache.sqlite` to prevent redundant network lookups.
 
+---
+
+### [BUG-005]: Unscoped `lib/` in Root `.gitignore` Shadowing `frontend/src/lib/`
+* **Date**: 2026-10-31
+* **Component**: Root Repository `.gitignore` / Frontend Source Code
+* **Symptom**: `git status` showed `frontend/src/lib/` as clean or ignored even after adding new exports and types (`fetchCircuitGeometry`, `CornerGeometry`, `CircuitGeometryResponse`).
+* **Root Cause Analysis (RCA)**:
+  Line 26 of `.gitignore` contained an un-anchored `lib/` rule intended for Python virtual environment libraries (`venv/lib/`), which caused Git to globally ignore any directory named `lib`, including `frontend/src/lib/`.
+* **Resolution**:
+  Modified `.gitignore` to anchor `/lib/` and `/lib64/` to root, and added an explicit negation `!frontend/src/lib/` to guarantee that all frontend client libraries and API definitions are tracked in version control.
+* **Verification**:
+  `git check-ignore -v frontend/src/lib/api.ts` confirmed the file is un-ignored, and `git status` properly tracks all API client updates.
+
+
