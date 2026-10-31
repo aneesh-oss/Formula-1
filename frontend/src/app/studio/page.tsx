@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, MapPin, ShieldAlert, Zap } from "lucide-react";
 import CarHealthHUD from "@/components/CarHealthHUD";
+import LiveRaceTicker from "@/components/LiveRaceTicker";
+import QualifyingTower from "@/components/QualifyingTower";
 import TelemetryChart from "@/components/TelemetryChart";
 import TrackMap from "@/components/TrackMap";
 import {
@@ -37,6 +39,7 @@ const TrackMap3D = dynamic(() => import("@/components/3d/TrackMap3D"), {
 });
 
 const CIRCUITS = [
+  { slug: "mexico", name: "Mexico City Grand Prix — Hermanos Rodríguez", country: "Mexico", len: "4.304 km" },
   { slug: "monza", name: "Italian Grand Prix — Monza", country: "Italy", len: "5.793 km" },
   { slug: "silverstone", name: "British Grand Prix — Silverstone", country: "UK", len: "5.891 km" },
   { slug: "spa", name: "Belgian Grand Prix — Spa-Francorchamps", country: "Belgium", len: "7.004 km" },
@@ -230,6 +233,12 @@ export default function TelemetryDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Live Stream Real-Time Race Ingestion Banner */}
+      <LiveRaceTicker />
+
+      {/* Official F1 Live Qualifying Timing Tower & Knockout Elimination Drop Zone */}
+      <QualifyingTower />
 
       {/* B2B Executive Strategy Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

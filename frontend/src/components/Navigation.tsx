@@ -58,9 +58,20 @@ export default function Navigation() {
 
         {/* Live Observability / Engine Badge */}
         <div className="hidden lg:flex items-center space-x-3 text-[11px]">
+          <Link
+            href="/studio"
+            className="flex items-center space-x-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-red-400 border border-red-500/30 font-mono hover:bg-red-500/25 transition-all shadow-sm"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            </span>
+            <span className="font-bold">LIVE STREAM</span>
+          </Link>
+
           <div className="flex items-center space-x-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-emerald-400 border border-emerald-500/20 font-mono">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>DuckDB: In-Process OLAP</span>
+            <span>DuckDB: OLAP</span>
           </div>
           <div className="flex items-center space-x-1.5 rounded-full bg-pitwall-cyan/10 px-2.5 py-1 text-pitwall-cyan border border-pitwall-cyan/20 font-mono">
             <span>OTel: :4318</span>

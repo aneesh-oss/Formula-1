@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import LiveRaceTicker from "@/components/LiveRaceTicker";
 import {
   Activity,
   ArrowRight,
@@ -156,6 +157,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Live Stream Real-Time Race Ingestion Banner */}
+      <LiveRaceTicker />
 
       {/* Live Interactive Telemetry Delta Demo Card */}
       <section className="space-y-4">

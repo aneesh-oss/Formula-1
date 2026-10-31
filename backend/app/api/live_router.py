@@ -7,6 +7,7 @@ from fastapi import APIRouter, status
 from fastapi.responses import StreamingResponse
 
 from app.services.live_stream import live_stream_service
+from app.services.qualifying_service import qualifying_service
 from app.telemetry import get_tracer
 
 logger = logging.getLogger("pitwall.api.live")
@@ -107,4 +108,20 @@ async def get_latest_live_telemetry(limit: int = 10) -> Dict[str, Any]:
             "current_lap": live_stream_service.current_lap,
             "data": records,
         }
+
+
+@router.get(
+    "/qualifying",
+    summary="Retrieve Full F1 Qualifying Session Tower & Elimination Drops",
+    description="Returns all 22 drivers ranked in real time with timing gaps, soft tyre compounds, pit states, and the P15/P16 elimination drop line.",
+    status_code=status.HTTP_200_OK,
+)
+async def get_qualifying_leaderboard() -> Dict[str, Any]:
+    """Returns the official qualifying session timing tower with knocked-out drivers."""
+    with tracer.start_as_current_span("qualifying.standings") as span:
+        span.set_attribute("f1.session", "qualifying")
+        span.set_attribute("f1.leader", qualifying_service.leader_driver)
+
+    return qualifying_service.get_qualifying_standings()
+
 

@@ -20,6 +20,7 @@ This journal serves as the single source of truth for architectural evolution, t
 | [`[ENTRY-008]`](./008-circuit-geometry-and-hud-realism.md) | 2026-11-01 | Geometry / Telemetry / HUD | Authentic 2D circuit engine, studio 3D CAD vehicle HUD with callouts, full race lap table (71 laps), and dynamic aero deltas. | **Completed** |
 | [`[ENTRY-009]`](./009-antigravity-team-and-screens.md) | 2026-11-01 | Governance / Product / Frontend | Antigravity autonomous virtual team pipeline (6 agent skills + 8 domain skills), product specs, DESIGN.md, and Landing vs 3D Studio route separation. | **Completed** |
 | [`[ENTRY-010]`](./010-live-race-ingestion-worker.md) | 2026-11-01 | Ingestion / Streaming / SRE | Real-time race stream ingestion worker, in-memory DuckDB telemetry buffer, OTel live.lap_tick spans, and Server-Sent Events (SSE) route. | **Completed** |
+| [`[ENTRY-011]`](./011-qualifying-timing-tower-and-knockout-zones.md) | 2026-11-01 | Frontend / Ingestion / Qualifying | Broadcast-grade F1 Qualifying timing tower, 22-car classification, Lewis Hamilton P1 (1:17.341), and P15/P16 knockout drop zone. | **Completed** |
 
 ---
 
