@@ -70,7 +70,24 @@ After creating any entry, the developer or agent MUST update `docs/journal/READM
 
 ---
 
-## 5. Bug-Fix & Incident Post-Mortem Protocol
+## 5. Git Commit Approval Gate
+
+**MANDATORY**: The agent MUST NEVER run `git commit`, `git push`, or any destructive `git` command (reset, rebase, force-push) without first presenting a commit summary to the user and receiving explicit approval.
+
+### Pre-Commit Checklist (show to user before every commit)
+1. **Files staged**: List every file in the diff (`git diff --cached --name-only`)
+2. **Commit message**: Show the full proposed conventional-commit message
+3. **Impact summary**: One sentence describing what changes and why
+4. **Wait for user to respond "approve" / "yes" / "go" or equivalent** before running `git commit`.
+
+### Pre-Push Checklist
+1. Show `git log --oneline origin/main..HEAD` (commits to be pushed)
+2. Confirm remote URL (`git remote -v`)
+3. Wait for explicit user approval before running `git push`.
+
+---
+
+## 6. Bug-Fix & Incident Post-Mortem Protocol
 Whenever a bug, broken dependency, runtime exception, or unexpected performance degradation is fixed, the engineer MUST record an incident entry in `docs/journal/BUG-FIXES.md` with:
 1. `Incident ID`: `[BUG-XXX]`
 2. `Component`: The affected module or service

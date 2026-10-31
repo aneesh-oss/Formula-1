@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, MapPin, ShieldAlert, Zap } from "lucide-react";
 import CarHealthHUD from "@/components/CarHealthHUD";
@@ -48,11 +48,11 @@ const CIRCUITS = [
 ];
 
 export default function TelemetryDashboard() {
-  const [selectedCircuit, setSelectedCircuit] = useState("monza");
+  const [selectedCircuit, setSelectedCircuit] = useState("spielberg");
   const [selectedYear, setSelectedYear] = useState(2024);
   const [driverA, setDriverA] = useState("VER");
   const [driverB, setDriverB] = useState("NOR");
-  const [viewMode, setViewMode] = useState<"3D" | "2D">("3D");
+  const [viewMode, setViewMode] = useState<"3D" | "2D">("2D");
   const [telemetryData, setTelemetryData] = useState<CompareResponse | null>(null);
   const [tireData, setTireData] = useState<TireResponse | null>(null);
   const [carHealth, setCarHealth] = useState<CarHealthResponse | null>(null);
@@ -61,6 +61,54 @@ export default function TelemetryDashboard() {
   const [loading, setLoading] = useState(true);
 
   const activeCircuitMeta = CIRCUITS.find((c) => c.slug === selectedCircuit) || CIRCUITS[0];
+
+  // Dynamic calculations for executive strategy metrics
+  const liveStats = useMemo(() => {
+    if (!telemetryData || !telemetryData.data || !telemetryData.data.length) {
+      return {
+        topSpeedA: 342.0,
+        topSpeedB: 337.0,
+        topSpeedDelta: 5.0,
+        fasterTopDriver: driverA,
+        apexSpeedA: 95.0,
+        apexSpeedB: 92.0,
+        apexSpeedDelta: 3.0,
+        fasterApexDriver: driverA,
+        brakeTemp: carHealth?.brakes.front_disc_temp_celsius || 540,
+        vehicleStatus: carHealth?.overall_vehicle_status || "HEALTHY",
+      };
+    }
+
+    const speedsA = telemetryData.data.map((p) => p.speed_a).filter((v) => typeof v === "number" && !isNaN(v));
+    const speedsB = telemetryData.data.map((p) => p.speed_b).filter((v) => typeof v === "number" && !isNaN(v));
+
+    const maxA = speedsA.length ? Math.max(...speedsA) : 340;
+    const maxB = speedsB.length ? Math.max(...speedsB) : 335;
+    const topDelta = Math.round((maxA - maxB) * 10) / 10;
+    const fasterTopDriver = topDelta >= 0 ? driverA : driverB;
+
+    // Cornering / Apex Speed: evaluate lowest speed during braking or low-throttle points
+    const cornersA = telemetryData.data.filter((p) => p.brake_a > 15 || p.throttle_a < 30).map((p) => p.speed_a);
+    const cornersB = telemetryData.data.filter((p) => p.brake_b > 15 || p.throttle_b < 30).map((p) => p.speed_b);
+
+    const minA = cornersA.length ? Math.min(...cornersA) : 80;
+    const minB = cornersB.length ? Math.min(...cornersB) : 78;
+    const apexDelta = Math.round((minA - minB) * 10) / 10;
+    const fasterApexDriver = apexDelta >= 0 ? driverA : driverB;
+
+    return {
+      topSpeedA: Math.round(maxA * 10) / 10,
+      topSpeedB: Math.round(maxB * 10) / 10,
+      topSpeedDelta: Math.abs(topDelta),
+      fasterTopDriver,
+      apexSpeedA: Math.round(minA * 10) / 10,
+      apexSpeedB: Math.round(minB * 10) / 10,
+      apexSpeedDelta: Math.abs(apexDelta),
+      fasterApexDriver,
+      brakeTemp: carHealth?.brakes.front_disc_temp_celsius || 540,
+      vehicleStatus: carHealth?.overall_vehicle_status || "HEALTHY",
+    };
+  }, [telemetryData, carHealth, driverA, driverB]);
 
   useEffect(() => {
     async function loadData() {
@@ -191,10 +239,10 @@ export default function TelemetryDashboard() {
             <Zap className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">
-            +5.2 <span className="text-xs text-gray-400 font-normal">km/h</span>
+            +{liveStats.topSpeedDelta} <span className="text-xs text-gray-400 font-normal">km/h</span>
           </div>
           <p className="mt-1 text-[11px] text-emerald-400 font-medium">
-            {driverA} speed advantage on main straight
+            {liveStats.fasterTopDriver} speed advantage ({liveStats.topSpeedA} vs {liveStats.topSpeedB})
           </p>
         </div>
 
@@ -204,10 +252,10 @@ export default function TelemetryDashboard() {
             <ArrowUpRight className="h-4 w-4 text-pitwall-cyan" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">
-            +3.4 <span className="text-xs text-gray-400 font-normal">km/h</span>
+            +{liveStats.apexSpeedDelta} <span className="text-xs text-gray-400 font-normal">km/h</span>
           </div>
           <p className="mt-1 text-[11px] text-pitwall-cyan font-medium">
-            {driverB} higher minimum mid-corner speed
+            {liveStats.fasterApexDriver} mid-corner advantage ({liveStats.apexSpeedA} vs {liveStats.apexSpeedB})
           </p>
         </div>
 
@@ -217,10 +265,10 @@ export default function TelemetryDashboard() {
             <ShieldAlert className="h-4 w-4 text-rose-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">
-            {carHealth?.brakes.front_disc_temp_celsius || 540}°C
+            {liveStats.brakeTemp}°C
           </div>
           <p className="mt-1 text-[11px] text-gray-400 font-medium">
-            Carbon disc thermal window nominal
+            {liveStats.brakeTemp > 650 ? "Heavy thermal load window" : "Carbon disc thermal window nominal"}
           </p>
         </div>
 
@@ -230,10 +278,10 @@ export default function TelemetryDashboard() {
             <Compass className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">
-            {carHealth?.overall_vehicle_status || "HEALTHY"}
+            {liveStats.vehicleStatus}
           </div>
           <p className="mt-1 text-[11px] text-gray-400 font-medium">
-            4-corner tire grip decay nominal
+            {liveStats.vehicleStatus === "CRITICAL" ? "Severe tire degradation detected" : "4-corner tire grip window nominal"}
           </p>
         </div>
       </div>
@@ -276,9 +324,9 @@ export default function TelemetryDashboard() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
               <table className="w-full text-left text-xs font-mono">
-                <thead className="border-b border-pitwall-border/60 bg-pitwall-card/60 text-[10px] text-gray-400 uppercase">
+                <thead className="sticky top-0 z-10 border-b border-pitwall-border/60 bg-pitwall-card text-[10px] text-gray-400 uppercase">
                   <tr>
                     <th className="py-2 px-3">Lap</th>
                     <th className="py-2 px-3">Tyre</th>
@@ -290,7 +338,7 @@ export default function TelemetryDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-pitwall-border/30 text-xs">
-                  {sectorData?.laps.slice(0, 7).map((lap) => (
+                  {sectorData?.laps.map((lap) => (
                     <tr key={lap.lap_number} className="hover:bg-pitwall-card/40 transition-colors">
                       <td className="py-2 px-3 font-bold text-white">L{lap.lap_number}</td>
                       <td className="py-2 px-3">
@@ -346,11 +394,14 @@ export default function TelemetryDashboard() {
           ) : (
             <>
               <TrackMap
+                circuit={selectedCircuit}
+                year={selectedYear}
                 telemetry={telemetryData?.data || []}
                 activeIndex={activeScrubIdx}
                 driverACode={driverA}
                 driverBCode={driverB}
               />
+              <CarHealth3D tireData={tireData} driver={driverA} />
               <CarHealthHUD health={carHealth} driver={driverA} />
             </>
           )}

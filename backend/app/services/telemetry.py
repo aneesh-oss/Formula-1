@@ -40,30 +40,75 @@ class TelemetryService:
     def _generate_synthetic_lap_telemetry(
         self,
         circuit: str,
-        lap_length_m: float = 5793.0,  # Monza length ~5.79km
+        lap_length_m: Optional[float] = None,
         num_samples: int = 1500,
         driver: str = "VER",
     ) -> pd.DataFrame:
-        """Generates realistic telemetry dataset for testing or offline environments."""
-        distance = np.linspace(0, lap_length_m, num_samples)
-        # Create corners and straights profile
-        angle = (distance / lap_length_m) * 2 * np.pi
-        # Speed profile: straights ~340 km/h, chicanes/corners down to 80-160 km/h
-        driver_bias = 1.02 if driver.upper() == "VER" else 1.00
-        speed = 220 + 100 * np.sin(3 * angle) + 40 * np.cos(7 * angle)
-        speed = np.clip(speed * driver_bias, 75.0, 350.0)
+        """Generates authentic circuit-specific telemetry dataset for testing or offline environments."""
+        circuit_key = circuit.lower().replace("-", "_")
 
-        throttle = np.where(speed > 250, 100.0, np.clip((speed - 100) / 1.5, 0.0, 100.0))
-        brake = np.where(throttle < 20, np.clip((200 - speed) / 2.0, 0.0, 100.0), 0.0)
-        rpm = np.clip(speed * 35 + 2000, 4000, 12500)
-        gear = np.clip((speed / 45).astype(int) + 1, 1, 8)
-        drs = np.where((distance > 1000) & (distance < 2000), 1, 0)
+        circuit_profiles = {
+            "monza": {"length": 5793.0, "top_speed": 352.0, "min_speed": 74.0},
+            "spielberg": {"length": 4318.0, "top_speed": 324.5, "min_speed": 82.0},
+            "austria": {"length": 4318.0, "top_speed": 324.5, "min_speed": 82.0},
+            "red_bull_ring": {"length": 4318.0, "top_speed": 324.5, "min_speed": 82.0},
+            "monaco": {"length": 3337.0, "top_speed": 292.0, "min_speed": 48.0},
+            "silverstone": {"length": 5891.0, "top_speed": 332.0, "min_speed": 90.0},
+            "spa": {"length": 7004.0, "top_speed": 341.0, "min_speed": 76.0},
+            "zandvoort": {"length": 4259.0, "top_speed": 314.0, "min_speed": 88.0},
+            "sao_paulo": {"length": 4309.0, "top_speed": 336.0, "min_speed": 78.0},
+            "interlagos": {"length": 4309.0, "top_speed": 336.0, "min_speed": 78.0},
+            "suzuka": {"length": 5807.0, "top_speed": 326.0, "min_speed": 72.0},
+        }
 
-        # Coordinates roughly tracing an F1 circuit outline
+        profile = circuit_profiles.get(circuit_key, circuit_profiles["monza"])
+        length = lap_length_m or profile["length"]
+        base_top = profile["top_speed"]
+        base_min = profile["min_speed"]
+
+        driver_key = driver.upper()
+        # Authentic aero/PU deltas per driver
+        driver_top_offset = {
+            "VER": 2.4,  # Red Bull top-end straight line speed advantage
+            "NOR": -1.2, # McLaren high downforce wing setup (higher drag, higher corner speed)
+            "LEC": 0.8,  # Ferrari balanced
+            "HAM": -0.5, # Mercedes balanced
+            "PIA": -1.5, # McLaren high downforce
+            "SAI": 0.5,
+        }.get(driver_key, 0.0)
+
+        driver_apex_offset = {
+            "VER": 0.8,
+            "NOR": 3.6,  # McLaren mid-corner grip advantage
+            "LEC": 1.4,
+            "HAM": 1.2,
+            "PIA": 3.2,
+            "SAI": 1.1,
+        }.get(driver_key, 0.0)
+
+        distance = np.linspace(0, length, num_samples)
+        angle = (distance / length) * 2 * np.pi
+
+        # Dynamic multi-harmonic speed profile with corners and straights
+        wave = 0.55 * np.sin(3 * angle) + 0.35 * np.cos(7 * angle) + 0.10 * np.sin(11 * angle)
+        # Normalize wave between 0.0 (slowest apex) and 1.0 (straight-line top speed)
+        norm_wave = (wave - wave.min()) / (wave.max() - wave.min() + 1e-6)
+
+        target_top = base_top + driver_top_offset
+        target_min = base_min + driver_apex_offset
+        speed = target_min + (target_top - target_min) * (norm_wave ** 1.35)
+        speed = np.round(speed, 1)
+
+        throttle = np.where(speed > (target_top * 0.75), 100.0, np.clip((speed - target_min) / (target_top - target_min) * 120.0, 0.0, 100.0))
+        brake = np.where(throttle < 25.0, np.clip((target_top * 0.6 - speed) * 1.8, 0.0, 100.0), 0.0)
+        rpm = np.clip(speed * 32.0 + 2400.0, 4200.0, 12600.0)
+        gear = np.clip((speed / 44.0).astype(int) + 1, 1, 8)
+        drs_zone = length * 0.15
+        drs = np.where((distance > drs_zone) & (distance < drs_zone * 2.2), 1, 0)
+
         x = 1000.0 * np.cos(angle) + 200.0 * np.sin(2 * angle)
         y = 600.0 * np.sin(angle) + 150.0 * np.sin(3 * angle)
 
-        # Approximate elapsed lap time in seconds
         dt = np.gradient(distance) / np.maximum(speed / 3.6, 1.0)
         time_seconds = np.cumsum(dt)
 

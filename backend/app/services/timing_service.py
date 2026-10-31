@@ -84,53 +84,81 @@ class TimingService:
             span.set_attribute("f1.session_id", session_id)
             span.set_attribute("f1.driver", driver.upper())
 
-            # Curated / realistic lap-by-lap sector data for Monza 2024
-            # Overall session fastest sectors: S1=27.124 (VER), S2=27.652 (NOR), S3=26.310 (LEC)
-            overall_best_s1 = 27.124
-            overall_best_s2 = 27.652
-            overall_best_s3 = 26.310
+            # Authentic race distance and baseline lap times per circuit
+            session_lower = session_id.lower()
+            circuit_race_configs = {
+                "spielberg": {"laps": 71, "s1": 16.820, "s2": 29.150, "s3": 22.410, "best_s1": 16.710, "best_s2": 29.020, "best_s3": 22.250, "pit1": 22, "pit2": 52},
+                "austria": {"laps": 71, "s1": 16.820, "s2": 29.150, "s3": 22.410, "best_s1": 16.710, "best_s2": 29.020, "best_s3": 22.250, "pit1": 22, "pit2": 52},
+                "monaco": {"laps": 78, "s1": 19.450, "s2": 34.210, "s3": 20.890, "best_s1": 19.320, "best_s2": 33.950, "best_s3": 20.710, "pit1": 34, "pit2": None},
+                "silverstone": {"laps": 52, "s1": 28.210, "s2": 35.420, "s3": 24.890, "best_s1": 28.050, "best_s2": 35.120, "best_s3": 24.650, "pit1": 20, "pit2": 42},
+                "spa": {"laps": 44, "s1": 31.450, "s2": 45.120, "s3": 29.890, "best_s1": 31.180, "best_s2": 44.820, "best_s3": 29.540, "pit1": 15, "pit2": 30},
+                "zandvoort": {"laps": 72, "s1": 17.650, "s2": 28.920, "s3": 23.450, "best_s1": 17.510, "best_s2": 28.710, "best_s3": 23.250, "pit1": 28, "pit2": 54},
+                "sao_paulo": {"laps": 71, "s1": 18.720, "s2": 35.850, "s3": 17.210, "best_s1": 18.550, "best_s2": 35.520, "best_s3": 17.050, "pit1": 25, "pit2": 48},
+                "suzuka": {"laps": 53, "s1": 31.850, "s2": 40.750, "s3": 18.210, "best_s1": 31.620, "best_s2": 40.420, "best_s3": 18.010, "pit1": 18, "pit2": 36},
+                "monza": {"laps": 53, "s1": 27.124, "s2": 27.652, "s3": 26.310, "best_s1": 27.124, "best_s2": 27.652, "best_s3": 26.310, "pit1": 19, "pit2": 38},
+            }
+
+            circuit_match = "monza"
+            for k in circuit_race_configs.keys():
+                if k in session_lower:
+                    circuit_match = k
+                    break
+
+            cfg = circuit_race_configs[circuit_match]
+            total_race_laps = cfg["laps"]
+
+            overall_best_s1 = cfg["best_s1"]
+            overall_best_s2 = cfg["best_s2"]
+            overall_best_s3 = cfg["best_s3"]
 
             driver_code = driver.upper()
-            base_s1 = 27.124 if driver_code == "VER" else 27.240
-            base_s2 = 27.780 if driver_code == "VER" else 27.652
-            base_s3 = 26.410 if driver_code == "VER" else 26.450
+            driver_pace_offset = -0.08 if driver_code == "VER" else (0.00 if driver_code == "NOR" else 0.05)
+
+            base_s1 = cfg["s1"] + driver_pace_offset * 0.35
+            base_s2 = cfg["s2"] + driver_pace_offset * 0.45
+            base_s3 = cfg["s3"] + driver_pace_offset * 0.20
+
+            pit1_lap = cfg["pit1"]
+            pit2_lap = cfg.get("pit2")
 
             laps = []
-            for lap_num in range(1, 16):
-                s1 = round(base_s1 + (lap_num * 0.02) + np.random.uniform(-0.04, 0.04), 3)
-                s2 = round(base_s2 + (lap_num * 0.025) + np.random.uniform(-0.05, 0.05), 3)
-                s3 = round(base_s3 + (lap_num * 0.015) + np.random.uniform(-0.03, 0.03), 3)
+            for lap_num in range(1, total_race_laps + 1):
+                # Tire degradation over stint
+                stint_age = lap_num if lap_num <= pit1_lap else (lap_num - pit1_lap if not pit2_lap or lap_num <= pit2_lap else lap_num - pit2_lap)
+                deg_penalty = stint_age * 0.035
+                fuel_bonus = - (lap_num * 0.030) # Car gets lighter as fuel burns
 
-                is_pit_in = lap_num == 10
-                is_pit_out = lap_num == 11
-                compound = "MEDIUM" if lap_num <= 10 else "HARD"
+                s1 = round(base_s1 + deg_penalty * 0.3 + fuel_bonus * 0.3 + float(np.random.uniform(-0.05, 0.05)), 3)
+                s2 = round(base_s2 + deg_penalty * 0.45 + fuel_bonus * 0.45 + float(np.random.uniform(-0.06, 0.06)), 3)
+                s3 = round(base_s3 + deg_penalty * 0.25 + fuel_bonus * 0.25 + float(np.random.uniform(-0.04, 0.04)), 3)
+
+                is_pit_in = lap_num == pit1_lap or (pit2_lap and lap_num == pit2_lap)
+                is_pit_out = lap_num == (pit1_lap + 1) or (pit2_lap and lap_num == (pit2_lap + 1))
+
+                compound = "MEDIUM" if lap_num <= pit1_lap else ("HARD" if not pit2_lap or lap_num <= pit2_lap else "SOFT")
 
                 pit_info = None
                 if is_pit_in:
-                    s3 += 6.5  # Entering pit lane delta
+                    s3 += 6.5  # Pit lane transit delta
                     pit_info = {
                         "type": "PIT_IN",
-                        "stationary_time_sec": 2.38,
+                        "stationary_time_sec": round(float(np.random.uniform(2.15, 2.75)), 2),
                         "pit_lane_transit_sec": 24.12,
-                        "old_compound": "MEDIUM",
-                        "new_compound": "HARD",
+                        "old_compound": compound,
+                        "new_compound": "HARD" if lap_num <= pit1_lap else "SOFT",
                     }
                 elif is_pit_out:
                     s1 += 8.2  # Pit lane exit delta
                     pit_info = {
                         "type": "PIT_OUT",
-                        "compound": "HARD",
+                        "compound": compound,
                     }
 
                 lap_time = round(s1 + s2 + s3, 3)
 
-                # Sector status coloring:
-                # 'purple' (#a855f7) = Session Overall Fastest
-                # 'green'  (#22c55e) = Driver Personal Best
-                # 'yellow' (#eab308) = Nominal pace
-                s1_status = "purple" if s1 <= overall_best_s1 else ("green" if lap_num == 3 else "yellow")
-                s2_status = "purple" if s2 <= overall_best_s2 else ("green" if lap_num == 4 else "yellow")
-                s3_status = "purple" if s3 <= overall_best_s3 else ("green" if lap_num == 2 else "yellow")
+                s1_status = "purple" if s1 <= overall_best_s1 else ("green" if lap_num == 4 else "yellow")
+                s2_status = "purple" if s2 <= overall_best_s2 else ("green" if lap_num == 5 else "yellow")
+                s3_status = "purple" if s3 <= overall_best_s3 else ("green" if lap_num == 3 else "yellow")
 
                 laps.append(
                     {

@@ -12,6 +12,10 @@ This document tracks every bug, unexpected behavior, root-cause analysis (RCA), 
 | [`[BUG-002]`](#bug-002-container-code-stale-cache-missing-uvicorn---reload) | 2026-10-31 | Docker / FastAPI | Low | Code changes in mounted `./backend/app` not reflecting without manual restart | **Resolved** |
 | [`[BUG-003]`](#bug-003-opentelemetry-collector-401-unauthenticated-to-new-relic) | 2026-10-31 | SRE / OTel Collector | Low | OTel Collector logging `HTTP Status Code 401` dropping upstream export batches | **Resolved** |
 | [`[BUG-004]`](#bug-004-fastf1-f1-account-credential-warning-on-cold-start) | 2026-10-31 | Ingestion / FastF1 | Informational | FastF1 logs `Failed to authenticate with Formula 1 account...` on raw session load | **Documented & Expected** |
+| [`[BUG-005]`](#bug-005-unscoped-lib-in-root-gitignore-shadowing-frontendsrclib) | 2026-10-31 | Root Repository `.gitignore` / Frontend Source Code | Low | Root `.gitignore` `lib/` matching `frontend/src/lib/` | **Resolved** |
+| [`[BUG-006]`](#bug-006-telemetry-uniform-speed-clip-resulting-in-zero-delta) | 2026-11-01 | Telemetry Engine / Physics | Medium | Top Speed Delta showing `+0 km/h (350 vs 350)` | **Resolved** |
+| [`[BUG-007]`](#bug-007-fastf1-empty-cache-directory-auth-socket-hang) | 2026-11-01 | Ingestion / FastF1 Caching | High | Backend hanging and timing out on empty FastF1 directories | **Resolved** |
+| [`[BUG-008]`](#bug-008-frontend-sector-lap-table-hard-slice-truncation) | 2026-11-01 | Frontend Dashboard / UI | Low | Sector splits & lap times table only displaying 7 laps | **Resolved** |
 
 ---
 
@@ -93,5 +97,45 @@ This document tracks every bug, unexpected behavior, root-cause analysis (RCA), 
   Modified `.gitignore` to anchor `/lib/` and `/lib64/` to root, and added an explicit negation `!frontend/src/lib/` to guarantee that all frontend client libraries and API definitions are tracked in version control.
 * **Verification**:
   `git check-ignore -v frontend/src/lib/api.ts` confirmed the file is un-ignored, and `git status` properly tracks all API client updates.
+
+---
+
+### [BUG-006]: Telemetry Uniform Speed Clip Resulting in Zero Delta
+* **Date**: 2026-11-01
+* **Component**: `backend/app/services/telemetry.py`
+* **Symptom**: Top Speed Delta in dashboard header displayed `+0 km/h` with subtext `VER speed advantage (350 vs 350)`.
+* **Root Cause Analysis (RCA)**:
+  In `_generate_synthetic_lap_telemetry`, speed was clipped via `np.clip(speed * driver_bias, 75.0, 350.0)`. On straights, both driver traces saturated against the uniform 350.0 km/h ceiling, collapsing the maximum speed delta to zero.
+* **Resolution**:
+  Replaced static 350.0 cap with dynamic Grand Prix specific speed envelopes (Monza ~352 km/h, Spielberg ~324.5 km/h, Monaco ~292 km/h) and driver-specific aerodynamic drag/downforce trims (VER +2.4 km/h straight-line advantage, NOR +3.6 km/h mid-corner advantage).
+* **Verification**:
+  Verified via `/api/v1/telemetry/compare`: VER max speed 326.9 km/h, NOR max speed 323.3 km/h -> Top Speed Delta `+3.6 km/h`.
+
+---
+
+### [BUG-007]: FastF1 Empty Cache Directory Auth Socket Hang
+* **Date**: 2026-11-01
+* **Component**: `backend/app/services/circuit_service.py`
+* **Symptom**: Requests to `/api/v1/circuits/2024/{circuit}/geometry` hung indefinitely or timed out with `ECONNRESET`.
+* **Root Cause Analysis (RCA)**:
+  `CircuitService` checked `os.path.exists(cache_dir)` to decide whether to query FastF1. When previous unauthenticated runs left empty directory skeletons (e.g. `2024-09-01_Race`), `is_cached` evaluated to True, prompting FastF1 to attempt network socket connections that hung without live credentials.
+* **Resolution**:
+  Enhanced cache validation to ensure the directory contains non-empty session files before triggering FastF1, falling back seamlessly to deterministic FIA circuit geometry when offline.
+* **Verification**:
+  Verified sub-10ms response time on `/api/v1/circuits/2024/spielberg/geometry` without network hangups.
+
+---
+
+### [BUG-008]: Frontend Sector Lap Table Hard-Slice Truncation
+* **Date**: 2026-11-01
+* **Component**: `frontend/src/app/page.tsx` & `backend/app/services/timing_service.py`
+* **Symptom**: Sector splits table displayed only 7 laps instead of the full race distance.
+* **Root Cause Analysis (RCA)**:
+  `timing_service.py` only synthesized laps 1..15, and `page.tsx` had an explicit `.slice(0, 7)` in its JSX render loop.
+* **Resolution**:
+  Configured realistic full race lap counts per circuit (Spielberg 71 laps, Monza 53 laps) in `timing_service.py`, removed the `.slice(0, 7)` restriction, and enclosed the table in an auto-scrolling container with a sticky header.
+* **Verification**:
+  Confirmed 71 scrollable race laps rendered in the frontend table for Austrian GP.
+
 
 
