@@ -67,3 +67,5 @@ flowchart LR
    - Every completed phase must log an entry in `docs/journal/` adhering to [`engineering-journal.md`](./engineering-journal.md).
 4. **Git Approval Invariant**:
    - Never run `git commit` or `git push` without presenting the diff summary to the user and receiving explicit approval.
+5. **Environment Variable Invariant**:
+   - Only modify `.env.example` when introducing new configuration variables or tool integrations. NEVER edit the user's private `.env` file directly; the user will review `.env.example` and copy desired keys into `.env` themselves.

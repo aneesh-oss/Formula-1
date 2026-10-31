@@ -12,7 +12,9 @@ from pydantic import BaseModel
 from app.api.championship_router import router as championship_router
 from app.api.circuits_router import router as circuits_router
 from app.api.dashboard_router import router as dashboard_router
+from app.api.live_router import router as live_router
 from app.api.telemetry_router import router as telemetry_router
+from app.services.live_stream import live_stream_service
 from app.telemetry import get_tracer, record_tire_metrics, setup_telemetry
 
 # Configure application logging
@@ -35,9 +37,14 @@ async def lifespan(app: FastAPI):
 
     # Initialize OpenTelemetry instrumentation
     setup_telemetry(app)
+
+    # Start live race stream ingestion worker
+    live_stream_service.start()
+
     logger.info("PitWall OS ready for telemetry processing.")
     yield
     logger.info("Shutting down PitWall OS Backend Engine...")
+    live_stream_service.stop()
 
 
 app = FastAPI(
@@ -61,6 +68,7 @@ app.include_router(telemetry_router)
 app.include_router(championship_router)
 app.include_router(dashboard_router)
 app.include_router(circuits_router)
+app.include_router(live_router)
 
 
 class HealthResponse(BaseModel):
@@ -81,6 +89,12 @@ class SessionSyncResponse(BaseModel):
 
 @app.get(
     "/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Reliability"],
+)
+@app.get(
+    "/api/v1/health",
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
     tags=["Reliability"],

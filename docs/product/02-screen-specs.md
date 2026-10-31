@@ -51,9 +51,10 @@ flowchart TD
      - Circuit dropdown (Austria, Monza, Silverstone, Spa, Suzuka, Monaco, etc.).
      - Driver A vs Driver B selector (VER vs NOR, HAM vs LEC).
      - Live Strategy Badges: Top Speed Delta, Apex Speed Delta, Brake Disc Thermal Window, Vehicle Grip State.
-  2. **Primary Viewport (Dual 2D / 3D Mode)**:
+  2. **Primary Viewport (Multi-Layer Mode)**:
      - **2D Broadcast Map (`TrackMap.tsx`)**: Authentic SVG track spline with exact corner tags (T1 to T8), sector colors (S1 Cyan, S2 Amber, S3 Purple), start/finish line, and live car beacons.
      - **3D Spline Track Ribbon (`TrackMap3D.tsx`)**: Extruded 3D tube geometry with elevation, interactive `<Html>` pins on every corner, camera focus animations, and apex speed cards.
+     - **Google Maps Satellite Mode (`GoogleMapsTrack.tsx`)**: Dark-mode satellite circuit view with real-world tarmac, grandstands, gravel run-off areas, and GPS-aligned sector lines powered by Google Maps Platform.
   3. **Vehicle Health & Thermal HUD (`CarHealth3D.tsx`)**:
      - **Studio CAD View**: User-attached high-definition CAD render with precision callout badges attached to 4 tyres, front wing load ($-4.2\text{G}$), and halo load ($125\text{ kN}$).
      - **3D WebGL Mesh**: Three.js canvas with studio-grey carbon chassis and dynamic tire emissive materials tied to wear state ($<50\%$ Cyan, $50–75\%$ Amber, $>75\%$ Red).

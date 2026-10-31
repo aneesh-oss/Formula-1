@@ -20,11 +20,21 @@ Maintains the single source of truth for the PitWall OS design language, visual 
   - Critical Red: `#ff1744`
 - Defines typography standards: Monospaced numeric readouts (`JetBrains Mono`, `Chakra Petch`) and clean grotesque headers (`Inter`).
 
-## 2. Deliverables
+## 2. Google Stitch Integration & API Flow
+Stitch (`stitch.withgoogle.com`) powers the UI design process in two complementary modes:
+1. **Automated API Sync (`STITCH_API_KEY`)**:
+   - The UI Designer agent connects using `STITCH_API_KEY` configured in `.env`.
+   - Key is generated at: `stitch.withgoogle.com` -> Account Settings / Preferences -> API Keys -> Create API Key.
+   - Allows agents and MCP tools to query screen layouts, component trees, and design tokens programmatically.
+2. **Interactive Design Prompting**:
+   - When generating or refining cards visually on `stitch.withgoogle.com`, use the prompt template defined in `DESIGN.md`.
+   - Downloaded or generated Tailwind/React components are placed directly into `frontend/src/components/`.
+
+## 3. Deliverables
 - `DESIGN.md`: Complete design system tokens, layout grids, elevation rules, and component styling.
 - Design tokens and CSS classes integrated with Tailwind and Next.js.
 
-## 3. Collaboration & Skill Integration
+## 4. Collaboration & Skill Integration
 - Ingests screen structures from [`agent-screen-planner.md`](./agent-screen-planner.md).
 - Employs styling rules from [`frontend-ui-ux.md`](./frontend-ui-ux.md).
 - Hands off design specifications to [`agent-builder.md`](./agent-builder.md).
