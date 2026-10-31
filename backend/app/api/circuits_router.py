@@ -41,3 +41,4 @@ async def get_circuit_geometry(
             circuit_name=circuit,
             session_type=session_type,
         )
+

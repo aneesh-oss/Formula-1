@@ -81,3 +81,4 @@ In parallel, the 3D Vehicle Dynamics HUD (`CarHealth3D.tsx`) was upgraded with d
 ## 5. Next Steps
 - Implement Sprint 5: AI Race Engineer Natural Language Querying over DuckDB Telemetry.
 - Build Monte Carlo Pit Window Strategy Simulator for undercut/overcut forecasting.
+

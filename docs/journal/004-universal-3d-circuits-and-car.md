@@ -63,3 +63,4 @@ In parallel, the 3D Vehicle Dynamics HUD (`CarHealth3D.tsx`) was upgraded with d
   - `frontend/src/components/3d/CarHealth3D.tsx`: GLTF asset binding, dynamic emissive shader pulsing, floating 3D labels, and pitch-constrained OrbitControls.
   - `frontend/src/app/page.tsx`: Added Grand Prix circuit switcher, dynamic telemetry sync, and Next.js SSR-safe dynamic imports.
   - `docs/journal/README.md`: Updated Master Journal Index with `[ENTRY-007]`.
+
