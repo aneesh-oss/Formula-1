@@ -1,0 +1,70 @@
+---
+name: engineering-journal
+description: Operational invariant for maintaining the PitWall OS Engineering Journal
+trigger: always_active
+version: 1.0.0
+---
+
+# Engineering Journal Invariant & Standard Operating Procedure
+
+## 1. Core Invariant
+**No code or architecture changes may be considered complete without a corresponding entry recorded in the Engineering Journal.**
+
+Every feature implementation, refactoring, performance optimization, or bug fix must be systematically documented under `docs/journal/`.
+
+---
+
+## 2. Directory Layout & Numbering Scheme
+All entries must reside in `docs/journal/` using three-digit zero-padded sequential IDs:
+```text
+docs/journal/
+├── README.md                          # Master index with summary table
+├── 001-project-scaffolding.md         # [ENTRY-001] Initial setup & zero-cost architecture
+├── 002-fastf1-ingestion-pipeline.md   # [ENTRY-002] ...
+└── ...
+```
+
+---
+
+## 3. Entry Document Format
+Each journal file `docs/journal/XXX-<slug>.md` MUST adhere to this structure:
+
+```markdown
+# [ENTRY-XXX] <Title>
+
+**Date**: YYYY-MM-DD  
+**Author**: <Name or Role>  
+**Status**: Completed | In Progress | Deprecated  
+**Component**: Backend | Frontend | Lakehouse | OTel | Physics  
+
+---
+
+## 1. Objective & Context
+Describe what was built or changed and the business/engineering motivation.
+
+## 2. Technical Decisions & Trade-Offs
+Detail alternative options considered and the rationale for the selected design (e.g., in-process DuckDB vs external Postgres).
+
+## 3. Files Touched
+- `created`: Path to new files
+- `modified`: Path to modified files
+- `deleted`: Path to deleted files (if any)
+
+## 4. OpenTelemetry & Verification
+- Spans added or updated (`span.name`, attributes)
+- Metrics emitted (`f1.tire.pressure_psi`, etc.)
+- Verification steps (cURL commands, log outputs, test passes)
+
+## 5. Next Steps
+Immediate subsequent tasks enabled by this entry.
+```
+
+---
+
+## 4. Master Index Maintenance
+After creating any entry, the developer or agent MUST update `docs/journal/README.md` to append the entry into the Master Table:
+
+| Entry ID | Date | Component | Summary | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `[ENTRY-001]` | 2026-10-31 | Infra / Core | Initial scaffolding, zero-cost architecture rationale, Docker, OTel Collector | Completed |
+
