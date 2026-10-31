@@ -30,20 +30,20 @@ class LiveStreamService:
 
         # Dynamic Meeting & Session Context
         self.meeting_name = "FORMULA 1 GRAN PREMIO DE LA CIUDAD DE MÉXICO 2026"
-        self.session_name = "Qualifying (Q1)"
+        self.session_name = "Qualifying (Q3 Concluded)"
         self.circuit_name = "Autódromo Hermanos Rodríguez — Mexico City"
-        self.track_status = "GREEN"
-        self.current_lap = 12
+        self.track_status = "CHEQUERED"
+        self.current_lap = 16
 
         # Driver state tracking
         self.driver_stints: Dict[str, Dict[str, Any]] = {
-            "VER": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 12, "gap": "LEADER"},
-            "NOR": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 12, "gap": "+0.130s"},
-            "LEC": {"stint_lap": 5, "compound": "SOFT", "laps_completed": 12, "gap": "+0.190s"},
-            "SAI": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 12, "gap": "+0.270s"},
-            "PIA": {"stint_lap": 5, "compound": "SOFT", "laps_completed": 12, "gap": "+0.360s"},
-            "HAM": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 12, "gap": "+0.440s"},
-            "RUS": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 12, "gap": "+0.490s"},
+            "HAM": {"stint_lap": 3, "compound": "SOFT", "laps_completed": 16, "gap": "POLE"},
+            "RUS": {"stint_lap": 3, "compound": "SOFT", "laps_completed": 16, "gap": "+0.009s"},
+            "LEC": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 16, "gap": "+0.119s"},
+            "VER": {"stint_lap": 3, "compound": "SOFT", "laps_completed": 16, "gap": "+0.178s"},
+            "ANT": {"stint_lap": 3, "compound": "SOFT", "laps_completed": 16, "gap": "+0.193s"},
+            "NOR": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 16, "gap": "+0.310s"},
+            "HAD": {"stint_lap": 4, "compound": "SOFT", "laps_completed": 16, "gap": "+0.386s"},
         }
         self.processed_lap_keys: Set[str] = set()
         self._worker_task: Optional[asyncio.Task] = None
@@ -81,13 +81,14 @@ class LiveStreamService:
             logger.info("Initialized in-memory DuckDB table 'live_race_telemetry'.")
 
     def _seed_initial_data(self):
-        """Pre-populates DuckDB with recent Mexico Qualifying Q1 lap times."""
+        """Pre-populates DuckDB with Mexico City Qualifying Q3 Pole Shootout lap times."""
         initial_laps = [
-            ("VER", 11, 27.180, 29.620, 19.350, 76.150, "LEADER", 3, "SOFT", 18.5, "OPTIMAL"),
-            ("NOR", 11, 27.240, 29.580, 19.460, 76.280, "+0.130s", 3, "SOFT", 17.8, "OPTIMAL"),
-            ("LEC", 11, 27.290, 29.640, 19.410, 76.340, "+0.190s", 4, "SOFT", 21.2, "OPTIMAL"),
-            ("SAI", 11, 27.310, 29.690, 19.420, 76.420, "+0.270s", 3, "SOFT", 18.0, "OPTIMAL"),
-            ("HAM", 11, 27.390, 29.740, 19.460, 76.590, "+0.440s", 3, "SOFT", 19.0, "OPTIMAL"),
+            ("HAM", 16, 26.880, 29.480, 20.154, 76.514, "POLE", 3, "SOFT", 14.2, "OPTIMAL"),
+            ("RUS", 16, 26.890, 29.510, 20.123, 76.523, "+0.009s", 3, "SOFT", 15.0, "OPTIMAL"),
+            ("LEC", 16, 26.920, 29.540, 20.173, 76.633, "+0.119s", 4, "SOFT", 16.5, "OPTIMAL"),
+            ("VER", 16, 26.960, 29.550, 20.182, 76.692, "+0.178s", 3, "SOFT", 16.2, "OPTIMAL"),
+            ("ANT", 16, 26.980, 29.580, 20.147, 76.707, "+0.193s", 3, "SOFT", 15.8, "OPTIMAL"),
+            ("NOR", 16, 27.010, 29.620, 20.194, 76.824, "+0.310s", 4, "SOFT", 17.1, "OPTIMAL"),
         ]
         now = datetime.datetime.utcnow()
         for driver, lap, s1, s2, s3, total, gap, stint, comp, wear, state in initial_laps:
@@ -317,15 +318,15 @@ class LiveStreamService:
                 # 2. Progress live qualifying flying laps around Autódromo Hermanos Rodríguez
                 self.current_lap += 1
 
-                # Live Mexico City Qualifying Q1 flying lap paces
+                # Live Mexico City Qualifying Q3 Pole Shootout flying lap paces
                 qualifying_flying_laps = [
-                    ("VER", 27.180, 29.620, 19.350, "LEADER", "SOFT"),
-                    ("NOR", 27.240, 29.580, 19.460, "+0.130s", "SOFT"),
-                    ("LEC", 27.290, 29.640, 19.410, "+0.190s", "SOFT"),
-                    ("SAI", 27.310, 29.690, 19.420, "+0.270s", "SOFT"),
-                    ("PIA", 27.350, 29.710, 19.450, "+0.360s", "SOFT"),
-                    ("HAM", 27.390, 29.740, 19.460, "+0.440s", "SOFT"),
-                    ("RUS", 27.420, 29.760, 19.460, "+0.490s", "SOFT"),
+                    ("HAM", 26.880, 29.480, 20.154, "POLE", "SOFT"),
+                    ("RUS", 26.890, 29.510, 20.123, "+0.009s", "SOFT"),
+                    ("LEC", 26.920, 29.540, 20.173, "+0.119s", "SOFT"),
+                    ("VER", 26.960, 29.550, 20.182, "+0.178s", "SOFT"),
+                    ("ANT", 26.980, 29.580, 20.147, "+0.193s", "SOFT"),
+                    ("NOR", 27.010, 29.620, 20.194, "+0.310s", "SOFT"),
+                    ("HAD", 27.080, 29.650, 20.170, "+0.386s", "SOFT"),
                 ]
 
                 for driver_code, s1, s2, s3, gap, comp in qualifying_flying_laps:

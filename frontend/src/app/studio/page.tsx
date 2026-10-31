@@ -6,6 +6,7 @@ import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, MapPin
 import CarHealthHUD from "@/components/CarHealthHUD";
 import LiveRaceTicker from "@/components/LiveRaceTicker";
 import QualifyingTower from "@/components/QualifyingTower";
+import RaceControlWeatherRibbon from "@/components/RaceControlWeatherRibbon";
 import TelemetryChart from "@/components/TelemetryChart";
 import TrackMap from "@/components/TrackMap";
 import {
@@ -233,6 +234,9 @@ export default function TelemetryDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Live Race Control Flag Status & FIA Weather Ribbon */}
+      <RaceControlWeatherRibbon />
 
       {/* Live Stream Real-Time Race Ingestion Banner */}
       <LiveRaceTicker />

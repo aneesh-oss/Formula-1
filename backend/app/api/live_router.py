@@ -113,15 +113,15 @@ async def get_latest_live_telemetry(limit: int = 10) -> Dict[str, Any]:
 @router.get(
     "/qualifying",
     summary="Retrieve Full F1 Qualifying Session Tower & Elimination Drops",
-    description="Returns all 22 drivers ranked in real time with timing gaps, soft tyre compounds, pit states, and the P15/P16 elimination drop line.",
+    description="Returns official Q1, Q2, or Q3 driver standings with sector splits, timing gaps, tyre compounds, and elimination cut-offs.",
     status_code=status.HTTP_200_OK,
 )
-async def get_qualifying_leaderboard() -> Dict[str, Any]:
-    """Returns the official qualifying session timing tower with knocked-out drivers."""
+async def get_qualifying_leaderboard(phase: str = "Q3") -> Dict[str, Any]:
+    """Returns the official qualifying session timing tower for Q1, Q2, or Q3 with knocked-out drivers."""
     with tracer.start_as_current_span("qualifying.standings") as span:
         span.set_attribute("f1.session", "qualifying")
-        span.set_attribute("f1.leader", qualifying_service.leader_driver)
+        span.set_attribute("f1.phase", phase.upper())
 
-    return qualifying_service.get_qualifying_standings()
+    return qualifying_service.get_qualifying_standings(phase=phase)
 
 
