@@ -8,9 +8,11 @@ export default function Navigation() {
   const pathname = usePathname();
 
   const navItems = [
-    { label: "Telemetry & Delta Studio", href: "/", icon: Activity },
-    { label: "Championship & Seasons", href: "/championship", icon: Flag },
-    { label: "Race Strategy Simulator", href: "/strategy", icon: Compass },
+    { label: "Overview", href: "/", icon: Activity },
+    { label: "3D Telemetry Studio", href: "/studio", icon: Gauge },
+    { label: "Race Strategy", href: "/strategy", icon: Compass },
+    { label: "Championship", href: "/championship", icon: Flag },
+    { label: "SRE Observability", href: "/ops", icon: Database },
   ];
 
   return (
