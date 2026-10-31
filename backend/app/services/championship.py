@@ -212,3 +212,4 @@ class ChampionshipService:
             except Exception:
                 pass
             return fallback
+

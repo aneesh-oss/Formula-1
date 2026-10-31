@@ -65,3 +65,4 @@ To transform PitWall OS into an enterprise B2B Formula 1 intelligence platform s
 - Tested `/api/v1/championship/standings/drivers?year=2024` returning Verstappen (437 pts), Norris (374 pts), Leclerc (356 pts).
 - Tested `/api/v1/championship/standings/constructors?year=2024` returning McLaren (666 pts), Ferrari (652 pts), Red Bull (589 pts).
 - Verified Next.js components render cleanly with strict TypeScript compiler options.
+

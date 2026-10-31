@@ -1,17 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, ArrowUpRight, Compass, ShieldAlert, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowUpRight, Clock, Compass, ShieldAlert, Zap } from "lucide-react";
+import CarHealthHUD from "@/components/CarHealthHUD";
 import TelemetryChart from "@/components/TelemetryChart";
 import TrackMap from "@/components/TrackMap";
 import VirtualTireWidget from "@/components/VirtualTireWidget";
-import { CompareResponse, fetchTelemetryCompare, fetchTireMetrics, TireResponse } from "@/lib/api";
+import {
+  CarHealthResponse,
+  CompareResponse,
+  fetchSessionSectors,
+  fetchTelemetryCompare,
+  fetchTireMetrics,
+  fetchVehicleHealth,
+  SessionSectorsResponse,
+  TireResponse,
+} from "@/lib/api";
 
 export default function TelemetryDashboard() {
   const [driverA, setDriverA] = useState("VER");
   const [driverB, setDriverB] = useState("NOR");
   const [telemetryData, setTelemetryData] = useState<CompareResponse | null>(null);
   const [tireData, setTireData] = useState<TireResponse | null>(null);
+  const [carHealth, setCarHealth] = useState<CarHealthResponse | null>(null);
+  const [sectorData, setSectorData] = useState<SessionSectorsResponse | null>(null);
   const [activeScrubIdx, setActiveScrubIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -19,14 +31,18 @@ export default function TelemetryDashboard() {
     async function loadData() {
       setLoading(true);
       try {
-        const [tel, tires] = await Promise.all([
+        const [tel, tires, health, sectors] = await Promise.all([
           fetchTelemetryCompare(driverA, driverB, 2024, "monza", "R"),
           fetchTireMetrics(driverA, 2024, "monza", "R"),
+          fetchVehicleHealth(driverA, 14, "MEDIUM"),
+          fetchSessionSectors("2024_monza_R", driverA),
         ]);
         setTelemetryData(tel);
         setTireData(tires);
+        setCarHealth(health);
+        setSectorData(sectors);
       } catch (err) {
-        console.error("Failed to load telemetry:", err);
+        console.error("Failed to load telemetry dashboard:", err);
       } finally {
         setLoading(false);
       }
@@ -44,10 +60,10 @@ export default function TelemetryDashboard() {
             <span>2024 ITALIAN GRAND PRIX — MONZA (RACE)</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white mt-1">
-            Telemetry Delta & Corner Studio
+            Telemetry Delta & Vehicle Dynamics Studio
           </h1>
           <p className="text-xs text-gray-400">
-            DuckDB zero-copy spatial alignment across 1,500 distance samples.
+            DuckDB zero-copy spatial alignment across 1,500 distance samples with sector split telemetry.
           </p>
         </div>
 
@@ -113,35 +129,35 @@ export default function TelemetryDashboard() {
 
         <div className="rounded-xl border border-pitwall-border bg-pitwall-panel p-4 shadow-lg">
           <div className="flex items-center justify-between text-gray-400 text-xs">
-            <span className="font-semibold">Tire Wear Delta</span>
-            <ShieldAlert className="h-4 w-4 text-amber-400" />
+            <span className="font-semibold">Brake Disc Temperature</span>
+            <ShieldAlert className="h-4 w-4 text-rose-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-white font-mono">
-            6.4% <span className="text-xs text-gray-400 font-normal">Stint L5</span>
+            {carHealth?.brakes.front_disc_temp_celsius || 540}°C
           </div>
-          <p className="mt-1 text-[11px] text-amber-400 font-medium">
-            Thermal degradation within nominal window
+          <p className="mt-1 text-[11px] text-gray-400 font-medium">
+            Carbon disc thermal window nominal
           </p>
         </div>
 
         <div className="rounded-xl border border-pitwall-border bg-pitwall-panel p-4 shadow-lg">
           <div className="flex items-center justify-between text-gray-400 text-xs">
-            <span className="font-semibold">Undercut Advantage</span>
-            <Compass className="h-4 w-4 text-rose-400" />
+            <span className="font-semibold">Vehicle Grip State</span>
+            <Compass className="h-4 w-4 text-emerald-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-white font-mono">
-            1.82 <span className="text-xs text-gray-400 font-normal">sec</span>
+          <div className="mt-2 text-2xl font-black text-emerald-400 font-mono">
+            {carHealth?.overall_vehicle_status || "HEALTHY"}
           </div>
           <p className="mt-1 text-[11px] text-gray-400 font-medium">
-            Projected delta on fresh C3 Hard tire
+            4-corner tire grip decay nominal
           </p>
         </div>
       </div>
 
       {/* Main Analysis Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Distance-Aligned Telemetry Delta (2 cols on large) */}
-        <div className="lg:col-span-2">
+        {/* Left Column: Distance-Aligned Telemetry Delta (2 cols) */}
+        <div className="lg:col-span-2 flex flex-col space-y-6">
           {loading || !telemetryData ? (
             <div className="flex h-96 items-center justify-center rounded-xl border border-pitwall-border bg-pitwall-panel font-mono text-gray-400">
               Loading DuckDB distance telemetry...
@@ -154,9 +170,76 @@ export default function TelemetryDashboard() {
               onHoverIndex={(idx) => setActiveScrubIdx(idx)}
             />
           )}
+
+          {/* Sector Splits & Pit Stop Monitor Table */}
+          <div className="rounded-xl border border-pitwall-border bg-pitwall-panel p-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-pitwall-border/60 pb-3 mb-3">
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-pitwall-cyan" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">
+                  Sector Splits & Pit Stop Monitor ({driverA})
+                </h3>
+              </div>
+              <div className="flex items-center space-x-3 text-[10px] font-mono">
+                <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-purple-500" /><span className="text-purple-400 font-bold">Session Best</span></span>
+                <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-emerald-400 font-bold">Personal Best</span></span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="border-b border-pitwall-border/60 bg-pitwall-card/60 text-[10px] text-gray-400 uppercase">
+                  <tr>
+                    <th className="py-2 px-3">Lap</th>
+                    <th className="py-2 px-3">Tyre</th>
+                    <th className="py-2 px-3">Sector 1</th>
+                    <th className="py-2 px-3">Sector 2</th>
+                    <th className="py-2 px-3">Sector 3</th>
+                    <th className="py-2 px-3">Lap Time</th>
+                    <th className="py-2 px-3 text-right">Pit Stop / Event</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-pitwall-border/30 text-xs">
+                  {sectorData?.laps.slice(0, 7).map((lap) => (
+                    <tr key={lap.lap_number} className="hover:bg-pitwall-card/40 transition-colors">
+                      <td className="py-2 px-3 font-bold text-white">L{lap.lap_number}</td>
+                      <td className="py-2 px-3">
+                        <span className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-bold text-gray-300">
+                          {lap.compound}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-bold" style={{ color: lap.sector_1.color }}>
+                        {lap.sector_1.time.toFixed(3)}
+                      </td>
+                      <td className="py-2 px-3 font-bold" style={{ color: lap.sector_2.color }}>
+                        {lap.sector_2.time.toFixed(3)}
+                      </td>
+                      <td className="py-2 px-3 font-bold" style={{ color: lap.sector_3.color }}>
+                        {lap.sector_3.time.toFixed(3)}
+                      </td>
+                      <td className="py-2 px-3 font-black text-white">
+                        {lap.lap_time_seconds.toFixed(3)}s
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono">
+                        {lap.pit_stop ? (
+                          <span className="rounded bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-400 border border-rose-500/30">
+                            {lap.pit_stop.type === "PIT_IN"
+                              ? `BOX (${lap.pit_stop.stationary_time_sec}s Stop)`
+                              : "OUT-LAP"}
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Track Map & Virtual Tires */}
+        {/* Right Column: Track Map & Vehicle Health Wireframe */}
         <div className="flex flex-col space-y-6">
           <TrackMap
             telemetry={telemetryData?.data || []}
@@ -164,7 +247,7 @@ export default function TelemetryDashboard() {
             driverACode={driverA}
             driverBCode={driverB}
           />
-          <VirtualTireWidget tireData={tireData} driver={driverA} />
+          <CarHealthHUD health={carHealth} driver={driverA} />
         </div>
       </div>
     </div>

@@ -96,3 +96,4 @@ async def get_constructor_standings(
         total_constructors=len(standings),
         standings=standings,
     )
+

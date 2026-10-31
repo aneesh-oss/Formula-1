@@ -80,3 +80,4 @@ This document tracks every bug, unexpected behavior, root-cause analysis (RCA), 
   FastF1 defaults to probing the live official `formula1.com` API first. If no `F1_USERNAME` or `F1_PASSWORD` is supplied, it issues a warning and redirects to the free open mirror `https://livetiming-mirror.fastf1.dev`.
 * **Resolution**:
   This is standard and expected behavior for non-commercial FastF1 usage. Documented in the architecture journal that no paid subscription (F1 TV or FanCode) is required, and all data is cached locally into `fastf1_http_cache.sqlite` to prevent redundant network lookups.
+

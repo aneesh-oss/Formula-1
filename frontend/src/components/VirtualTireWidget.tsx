@@ -154,3 +154,4 @@ export default function VirtualTireWidget({ tireData, driver = "VER" }: VirtualT
     </div>
   );
 }
+
