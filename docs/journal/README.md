@@ -15,6 +15,7 @@ This journal serves as the single source of truth for architectural evolution, t
 | [`[ENTRY-003]`](./003-multi-role-engineering-skills.md) | 2026-10-31 | Governance / Skills / CI | Established 7 specialized engineering skills (System Architect, Senior Backend, Frontend/UX, SRE, DevOps, F1 Race Engineer, AI Engineer) and GitHub Actions CI. | **Completed** |
 | [`[ENTRY-004]`](./004-championship-hub-nextjs-frontend.md) | 2026-10-31 | Frontend / B2B / Strategy | Built Next.js dark-mode Pit Wall dashboard, multi-season driver & constructor standings (1950–2024), SVG distance scrubbers, and AI strategy simulator. | **Completed** |
 | [`[ENTRY-005]`](./005-vehicle-health-and-trackmap.md) | 2026-10-31 | Vehicle Dynamics / Timing | Vehicle dynamics HUD, 4-wheel tire grip state machine (Optimal/Degrading/Grip Lost), brake disc heat model, sector splits & track geometry. | **Completed** |
+| [`[ENTRY-006]`](./006-3d-webgl-pitwall.md) | 2026-10-31 | 3D WebGL / Graphics | 3D PitWall HUD (Three.js/Fiber), 3D spline track ribbon with elevation, interactive corner HTML pins, and dynamic tire color shaders. | **Completed** |
 
 ---
 

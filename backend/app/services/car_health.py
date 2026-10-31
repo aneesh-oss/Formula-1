@@ -161,3 +161,4 @@ class CarHealthService:
                 "clutch": clutch,
                 "overall_vehicle_status": "CRITICAL" if any(t["status"] == "GRIP_LOST" for t in tires.values()) else ("WARNING" if any(t["status"] == "DEGRADING" for t in tires.values()) else "HEALTHY"),
             }
+

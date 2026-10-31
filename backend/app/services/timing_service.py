@@ -164,3 +164,4 @@ class TimingService:
                 "total_laps_recorded": len(laps),
                 "laps": laps,
             }
+

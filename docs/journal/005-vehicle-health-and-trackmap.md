@@ -60,3 +60,4 @@ The circuit distance vector ($L = 5,793\text{m}$) is divided into 3 discrete sec
 - `timing.track_map`: Custom span for geometry normalization.
 - `car.health`: Custom span capturing instantaneous 4-corner pressures and wear percentages.
 - Verified all endpoints with `curl` returning HTTP 200 and Next.js compiling all 576 modules without errors.
+

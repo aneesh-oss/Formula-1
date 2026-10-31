@@ -194,3 +194,4 @@ export default function CarHealthHUD({ health, driver = "VER" }: CarHealthHUDPro
     </div>
   );
 }
+

@@ -1,0 +1,9 @@
+{
+  "name": "F1 Chassis Model Manifest",
+  "version": "1.0.0",
+  "models": {
+    "chassis_glb": "/models/f1_chassis.glb",
+    "fallback_procedural": true
+  },
+  "tires": ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]
+}

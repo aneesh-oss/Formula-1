@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, AlertTriangle, ArrowUpRight, Clock, Compass, ShieldAlert, Zap } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Activity, AlertTriangle, ArrowUpRight, Box, Clock, Compass, Eye, ShieldAlert, Zap } from "lucide-react";
 import CarHealthHUD from "@/components/CarHealthHUD";
 import TelemetryChart from "@/components/TelemetryChart";
 import TrackMap from "@/components/TrackMap";
-import VirtualTireWidget from "@/components/VirtualTireWidget";
 import {
   CarHealthResponse,
   CompareResponse,
@@ -17,9 +17,29 @@ import {
   TireResponse,
 } from "@/lib/api";
 
+// Client-only dynamic imports for Three.js Canvas components to eliminate SSR hydration errors
+const CarHealth3D = dynamic(() => import("@/components/3d/CarHealth3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-96 w-full items-center justify-center rounded-xl border border-pitwall-border bg-pitwall-panel font-mono text-xs text-gray-500">
+      Loading 3D WebGL Vehicle Dynamics HUD...
+    </div>
+  ),
+});
+
+const TrackMap3D = dynamic(() => import("@/components/3d/TrackMap3D"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[420px] w-full items-center justify-center rounded-xl border border-pitwall-border bg-pitwall-panel font-mono text-xs text-gray-500">
+      Loading 3D Spline Track Ribbon...
+    </div>
+  ),
+});
+
 export default function TelemetryDashboard() {
   const [driverA, setDriverA] = useState("VER");
   const [driverB, setDriverB] = useState("NOR");
+  const [viewMode, setViewMode] = useState<"3D" | "2D">("3D");
   const [telemetryData, setTelemetryData] = useState<CompareResponse | null>(null);
   const [tireData, setTireData] = useState<TireResponse | null>(null);
   const [carHealth, setCarHealth] = useState<CarHealthResponse | null>(null);
@@ -52,7 +72,7 @@ export default function TelemetryDashboard() {
 
   return (
     <div className="flex flex-col space-y-6">
-      {/* Strategic Header & Session Selector */}
+      {/* Strategic Header & Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-pitwall-border/80 pb-4">
         <div>
           <div className="flex items-center space-x-2 text-xs font-mono text-pitwall-cyan font-semibold">
@@ -60,41 +80,70 @@ export default function TelemetryDashboard() {
             <span>2024 ITALIAN GRAND PRIX — MONZA (RACE)</span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-white mt-1">
-            Telemetry Delta & Vehicle Dynamics Studio
+            Telemetry Delta &amp; 3D PitWall HUD
           </h1>
           <p className="text-xs text-gray-400">
-            DuckDB zero-copy spatial alignment across 1,500 distance samples with sector split telemetry.
+            DuckDB zero-copy spatial alignment across 1,500 distance samples with interactive 3D WebGL scenes.
           </p>
         </div>
 
-        {/* Driver Selector Controls */}
-        <div className="flex items-center space-x-3 bg-pitwall-panel border border-pitwall-border rounded-lg p-1.5 shadow-sm">
-          <div className="flex items-center space-x-1.5 px-2">
-            <span className="text-[11px] text-gray-400 font-bold uppercase">Car 1:</span>
-            <select
-              value={driverA}
-              onChange={(e) => setDriverA(e.target.value)}
-              className="bg-pitwall-card border border-pitwall-border text-white text-xs font-bold rounded px-2 py-1 outline-none focus:border-pitwall-cyan"
+        {/* View Mode Toggle & Driver Selectors */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* 3D vs 2D Mode Switcher */}
+          <div className="flex items-center bg-pitwall-panel border border-pitwall-border rounded-lg p-1 text-xs font-mono font-bold">
+            <button
+              onClick={() => setViewMode("3D")}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded transition-all ${
+                viewMode === "3D"
+                  ? "bg-pitwall-cyan text-black shadow"
+                  : "text-gray-400 hover:text-white"
+              }`}
             >
-              <option value="VER">VER (Verstappen)</option>
-              <option value="NOR">NOR (Norris)</option>
-              <option value="LEC">LEC (Leclerc)</option>
-              <option value="HAM">HAM (Hamilton)</option>
-            </select>
+              <Box className="h-3.5 w-3.5" />
+              <span>3D WebGL</span>
+            </button>
+            <button
+              onClick={() => setViewMode("2D")}
+              className={`flex items-center space-x-1.5 px-3 py-1 rounded transition-all ${
+                viewMode === "2D"
+                  ? "bg-pitwall-cyan text-black shadow"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              <span>2D Cockpit</span>
+            </button>
           </div>
-          <span className="text-gray-500 font-bold text-xs">VS</span>
-          <div className="flex items-center space-x-1.5 px-2">
-            <span className="text-[11px] text-gray-400 font-bold uppercase">Car 2:</span>
-            <select
-              value={driverB}
-              onChange={(e) => setDriverB(e.target.value)}
-              className="bg-pitwall-card border border-pitwall-border text-white text-xs font-bold rounded px-2 py-1 outline-none focus:border-pitwall-cyan"
-            >
-              <option value="NOR">NOR (Norris)</option>
-              <option value="VER">VER (Verstappen)</option>
-              <option value="LEC">LEC (Leclerc)</option>
-              <option value="HAM">HAM (Hamilton)</option>
-            </select>
+
+          {/* Driver Selector Controls */}
+          <div className="flex items-center space-x-3 bg-pitwall-panel border border-pitwall-border rounded-lg p-1.5 shadow-sm">
+            <div className="flex items-center space-x-1.5 px-2">
+              <span className="text-[11px] text-gray-400 font-bold uppercase">Car 1:</span>
+              <select
+                value={driverA}
+                onChange={(e) => setDriverA(e.target.value)}
+                className="bg-pitwall-card border border-pitwall-border text-white text-xs font-bold rounded px-2 py-1 outline-none focus:border-pitwall-cyan font-mono"
+              >
+                <option value="VER">VER (Verstappen)</option>
+                <option value="NOR">NOR (Norris)</option>
+                <option value="LEC">LEC (Leclerc)</option>
+                <option value="HAM">HAM (Hamilton)</option>
+              </select>
+            </div>
+            <span className="text-gray-500 font-bold text-xs">VS</span>
+            <div className="flex items-center space-x-1.5 px-2">
+              <span className="text-[11px] text-gray-400 font-bold uppercase">Car 2:</span>
+              <select
+                value={driverB}
+                onChange={(e) => setDriverB(e.target.value)}
+                className="bg-pitwall-card border border-pitwall-border text-white text-xs font-bold rounded px-2 py-1 outline-none focus:border-pitwall-cyan font-mono"
+              >
+                <option value="NOR">NOR (Norris)</option>
+                <option value="VER">VER (Verstappen)</option>
+                <option value="LEC">LEC (Leclerc)</option>
+                <option value="HAM">HAM (Hamilton)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -156,7 +205,7 @@ export default function TelemetryDashboard() {
 
       {/* Main Analysis Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Distance-Aligned Telemetry Delta (2 cols) */}
+        {/* Left Column: Distance-Aligned Telemetry Delta & Sector Monitor */}
         <div className="lg:col-span-2 flex flex-col space-y-6">
           {loading || !telemetryData ? (
             <div className="flex h-96 items-center justify-center rounded-xl border border-pitwall-border bg-pitwall-panel font-mono text-gray-400">
@@ -177,12 +226,18 @@ export default function TelemetryDashboard() {
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-pitwall-cyan" />
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">
-                  Sector Splits & Pit Stop Monitor ({driverA})
+                  Sector Splits &amp; Pit Stop Monitor ({driverA})
                 </h3>
               </div>
               <div className="flex items-center space-x-3 text-[10px] font-mono">
-                <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-purple-500" /><span className="text-purple-400 font-bold">Session Best</span></span>
-                <span className="flex items-center space-x-1"><span className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-emerald-400 font-bold">Personal Best</span></span>
+                <span className="flex items-center space-x-1">
+                  <span className="h-2 w-2 rounded-full bg-purple-500" />
+                  <span className="text-purple-400 font-bold">Session Best</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-emerald-400 font-bold">Personal Best</span>
+                </span>
               </div>
             </div>
 
@@ -239,15 +294,29 @@ export default function TelemetryDashboard() {
           </div>
         </div>
 
-        {/* Right Column: Track Map & Vehicle Health Wireframe */}
+        {/* Right Column: Track Map & Vehicle Dynamics (3D WebGL vs 2D Toggleable) */}
         <div className="flex flex-col space-y-6">
-          <TrackMap
-            telemetry={telemetryData?.data || []}
-            activeIndex={activeScrubIdx}
-            driverACode={driverA}
-            driverBCode={driverB}
-          />
-          <CarHealthHUD health={carHealth} driver={driverA} />
+          {viewMode === "3D" ? (
+            <>
+              <TrackMap3D
+                telemetry={telemetryData?.data || []}
+                activeIndex={activeScrubIdx}
+                driverA={driverA}
+                driverB={driverB}
+              />
+              <CarHealth3D tireData={tireData} driver={driverA} />
+            </>
+          ) : (
+            <>
+              <TrackMap
+                telemetry={telemetryData?.data || []}
+                activeIndex={activeScrubIdx}
+                driverACode={driverA}
+                driverBCode={driverB}
+              />
+              <CarHealthHUD health={carHealth} driver={driverA} />
+            </>
+          )}
         </div>
       </div>
     </div>
