@@ -2,6 +2,8 @@
 
 This journal serves as the single source of truth for architectural evolution, technical trade-offs, performance benchmarks, and reliability invariants in PitWall OS.
 
+- **Incident & Bug Post-Mortems**: Track all resolved bugs and architectural fixes in [`BUG-FIXES.md`](./BUG-FIXES.md).
+
 ---
 
 ## Master Journal Index

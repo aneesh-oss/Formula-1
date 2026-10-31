@@ -68,3 +68,14 @@ After creating any entry, the developer or agent MUST update `docs/journal/READM
 | :--- | :--- | :--- | :--- | :--- |
 | `[ENTRY-001]` | 2026-10-31 | Infra / Core | Initial scaffolding, zero-cost architecture rationale, Docker, OTel Collector | Completed |
 
+---
+
+## 5. Bug-Fix & Incident Post-Mortem Protocol
+Whenever a bug, broken dependency, runtime exception, or unexpected performance degradation is fixed, the engineer MUST record an incident entry in `docs/journal/BUG-FIXES.md` with:
+1. `Incident ID`: `[BUG-XXX]`
+2. `Component`: The affected module or service
+3. `Symptom`: The exact error message or unexpected behavior
+4. `Root Cause Analysis (RCA)`: Technical explanation of why it occurred
+5. `Resolution & Code Change`: The exact architectural fix applied
+6. `Verification`: Proof of fix (test output or log verification)
+
